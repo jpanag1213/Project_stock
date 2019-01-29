@@ -15,13 +15,13 @@ import os
 import configparser
 from Utils import *
 import Strategy
-
+import time
 def run(configfile):
 
     # dataPath = 'E:/data/stock/wind'
     # symbols = ['000001.SZ']
     # exchange = symbol.split('.')[1].lower()
-    symbols, dataPath, dataReadType, tradingDays, outputpath, signal, lbwindow, lawindow = ConfigReader(configfile)
+    symbols, dataPath, dataReadType, tradingDays, outputpath, signal, lbwindow, lawindow,paraset= ConfigReader(configfile)
     for tradingDay in tradingDays:
         tradingDay = tradingDay.replace('-','')
         print('Processing tradingday = ', tradingDay)
@@ -36,11 +36,11 @@ def run(configfile):
         stsDf = list()
         strategyResult = list()
         for symbol in tradingSymbols:
-            stsDf.append(signalTester.CheckSignal(symbol,signal,lbwindow,lawindow))
+            stsDf.append(signalTester.CheckSignal(symbol,signal,lbwindow,lawindow,paraset))
             quoteData = data.quoteData[symbol]
-            strategy = Strategy.Strategy(symbol, round(1000000/quoteData['midp'].iloc[-1],-2), quoteData, signal, lbwindow, lawindow, 8, 'lawindow', outputpath = './strategy/' + tradingDay, stockType = 'low')
+            strategy = Strategy.Strategy(symbol, round(1000000/quoteData['midp'].iloc[-1],-2), quoteData, signal, lbwindow, lawindow, 8, 'lawindow',outputpath = './strategy/' + tradingDay, stockType = 'low')
             strategy.SummaryStrategy()
-            strategy.Plot()
+            #strategy.Plot()
             strategyResult.append(strategy.sts)
 
 
@@ -50,7 +50,7 @@ def run(configfile):
     return 0
 
 def CalculatreHisData(configfile):
-    symbols, dataPath, dataReadType, tradingDays, outputpath, signal, lbwindow, lawindow = ConfigReader(configfile)
+    symbols, dataPath, dataReadType, tradingDays, outputpath, signal, lbwindow, lawindow,paraset = ConfigReader(configfile)
     stdDf = pd.DataFrame(columns=symbols,index=tradingDays)
     for tradingDay in tradingDays:
         tradeDate = tradingDay.replace('-','')
@@ -64,7 +64,7 @@ def CalculatreHisData(configfile):
         stsDf = list()
         for symbol in tradingSymbols:
 
-            signalTester.CalSignal(symbol,0,'obi',lbwindow)
+            signalTester.CalSignal(symbol,0,'obi',lbwindow,paraset)
             # df2save = pd.DataFrame(signalTester.allQuoteData[symbol][signal])
             # df2save.columns = [symbol]
             stds = signalTester.allQuoteData[symbol][signal].std()
@@ -95,7 +95,7 @@ def CalculatreHisData(configfile):
     return 0
 
 def SummaryResult(configfile):
-    symbols, dataPath, dataReadType, tradingDays, outputpath, signal, lbwindow, lawindow = ConfigReader(configfile)
+    symbols, dataPath, dataReadType, tradingDays, outputpath, signal, lbwindow, lawindow,paraset = ConfigReader(configfile)
     # stdDf = pd.DataFrame(columns=symbols, index=tradingDays)
     stsDfList = list()
     for tradingDay in tradingDays:
@@ -148,8 +148,10 @@ def ConfigReader(configFile):
     lawindow            = int(parser.get('Signal','lawindow'))
     startDate           = parser.get('Signal','startDate')
     endDate             = parser.get('Signal','endDate')
+    paraset             = parser.get('Signal','paraset')
 
-
+    paraset = paraset.split('-')
+    print(paraset)
     tradingDays     = pd.read_csv(tradingDayFile, index_col=0, parse_dates=True)
     # main_future     = pd.read_csv(mainFutureFile,index_col=0,parse_dates=True)
     symbols = pd.read_csv(symbolfile,encoding='oem').loc[:,'secucode']
@@ -166,7 +168,7 @@ def ConfigReader(configFile):
     else:
         dataPath = ''
 
-    return symbols, dataPath, dataReadType, tradingDays, outputpath, signal, lbwindow, lawindow
+    return symbols, dataPath, dataReadType, tradingDays, outputpath, signal, lbwindow, lawindow,paraset
 
 if __name__ == '__main__':
     """
@@ -174,4 +176,8 @@ if __name__ == '__main__':
     """
     # SummaryResult('./configs/signal_test.txt')
     # CalculatreHisData('./configs/signal_test.txt')
+
+    t1 =  time.clock()
     run('./configs/signal_test.txt')
+    t2 = time.clock()
+    print(t2-t1)

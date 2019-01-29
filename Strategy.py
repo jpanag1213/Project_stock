@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 
 class Strategy(object):
 
-    def __init__(self, symbol, qty, quoteData, signal, lbwindow, lawindow, times, closeType, outputpath = './strategy', stockType = 'low'):
+    def __init__(self, symbol, qty, quoteData, signal, lbwindow, lawindow, times, closeType,outputpath = './strategy', stockType = 'low'):
         self.symbol = symbol
         self.qty = qty
         self.quoteData = quoteData
@@ -28,6 +28,7 @@ class Strategy(object):
         self.times = times
         self.closeType = closeType
         self.stockType = stockType
+
         self.sts = pd.DataFrame(columns = ['wr','pnl','times','todayup','trade_qty','total_qty'],index=[symbol])
         self.outputpath = outputpath
         if os.path.exists(outputpath) is False:
@@ -172,7 +173,7 @@ class Strategy(object):
                         winTimes = winTimes + 1
                     trade_flag.append(-4)
                 elif currentQty == 0:
-                    if count <= self.times:
+                    if count < self.times:
                         currentQty = currentQty + openQty
                         openPrice = askPrice
                         pnl = 0
@@ -195,7 +196,7 @@ class Strategy(object):
                         winTimes = winTimes + 1
                     trade_flag.append(4)
                 elif currentQty == 0:
-                    if count <= self.times:
+                    if count < self.times:
                         currentQty = currentQty - openQty
                         openPrice = bidPrice
                         pnl = 0

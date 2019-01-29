@@ -73,6 +73,7 @@ class SignalTester(object):
         """
         ## add minute can use :  + datetime.timedelta(minutes = 30)
         i = bisect.bisect_left(Data.index, targetTime + datetime.timedelta(minutes=window)) - 1
+
         if Data.index[i].hour >= 15 and Data.index[i].minute >= 15:
             futurePrice = np.nan
         else:
@@ -85,7 +86,7 @@ class SignalTester(object):
         logReturn = math.log(futurePrice / float(currentPrice))
         return logReturn
 
-    def GetSignalSeries(self, signal, symbol, lbWindow, startTime='', endTime=''):
+    def GetSignalSeries(self, signal, symbol, lbWindow,paraset, startTime='', endTime=''):
         """
 
         :param signal: signal name
@@ -118,7 +119,7 @@ class SignalTester(object):
             self.allQuoteData[symbol].loc[:, colName] = list(outputSeries)
         return outputSeries
 
-    def PlotSignalNReturn(self, signal, symbol, logReturns, lbWindow=10, laWindow=0, parameter=0, timeIndex='',
+    def PlotSignalNReturn(self, signal, symbol, logReturns, lbWindow=10, laWindow=0, paraset = 0, timeIndex='',
                           diffTime=0):
         """
         plot the signal with the log return under different axis.
@@ -129,7 +130,7 @@ class SignalTester(object):
         :param diffTime: lay back window
         :return: plot with signal and return(or price).
         """
-        signals = self.GetSignalSeries(signal, symbol, lbWindow)
+        signals = self.GetSignalSeries(signal, symbol, lbWindow,paraset)
         if timeIndex == '':
             timeIndex = self.allQuoteData[symbol].index[300:]
         Font_Size = 9  # the font size on th
@@ -262,18 +263,18 @@ class SignalTester(object):
             plt.savefig(savePath + '/' + symbol + '.jpg')
             plt.close('all')
 
-    def CalculateCOR(self, signal,symbol,lbWindow, logReturns, type='spearman'):
+    def CalculateCOR(self, signal,symbol,lbWindow, logReturns, type='spearman',paraset = list()):
         """
         Calculate the cor under some condition
         :param signal: signal name with lb window
         :param logReturns: logreturn series with la window.
         :return: the correlation between signals and log returns.
         """
-        signals = self.GetSignalSeries(signal,symbol, lbWindow)
+        signals = self.GetSignalSeries(signal,symbol, lbWindow,paraset)
         corDf = pd.DataFrame({'signal': signals, 'logReturns': logReturns})
         return corDf.corr(method=type).iloc[0, 1]
 
-    def CheckSignal(self, symbol, signal, lbWinodw=10, laWindow=10):
+    def CheckSignal(self, symbol, signal, lbWinodw=10, laWindow=10,paraset = list()):
         """
         To check whether this signal is useful under our adjudgement
         :param signal: signal name to check
@@ -285,16 +286,16 @@ class SignalTester(object):
         """
         # step1 : calculate signal
         if signal not in self.allQuoteData[symbol].columns:
-            self.CalSignal(symbol, 0, signal, lbWinodw)
+            self.CalSignal(symbol, 0, signal, lbWinodw,paraset)
         # step2 : calculate future log return
         logReturns = self.GetLogReturnSeries(symbol, laWindow)  # use future log reuturn to calculate the WR
         # step3 : plot the signal plots
 
-        self.PlotSignalNReturn(signal, symbol, logReturns, lbWinodw)
+        self.PlotSignalNReturn(signal, symbol, logReturns, lbWinodw, 0, paraset)
 
         # step4 : calculate the statistics
 
-        stsDf = self.CalSts(signal, symbol, lbWinodw, laWindow)
+        stsDf = self.CalSts(signal, symbol, lbWinodw, laWindow,paraset = paraset)
         print(stsDf)
 
         # step5 : run the signal model:
@@ -308,7 +309,7 @@ class SignalTester(object):
         :return: boolean variable series.
         """
 
-    def CalSignal(self, symbol='', threshold=0, signal='volumeRatio', window=10):
+    def CalSignal(self, symbol='', threshold=0, signal='volumeRatio', window=10,paraset = list()):
         """
 
         :param signal: the signal name, such as 'obi' or 'tfi'
@@ -329,6 +330,9 @@ class SignalTester(object):
             # print 'Calculate volume ratio here'
         elif signal == 'obi':
             # todo: revise the obi signal here
+            print(paraset[0])
+            print(paraset[1])
+            print(paraset[3])
             self.allQuoteData[symbol].loc[:, 'obi'] = np.log(self.allQuoteData[symbol].loc[:, 'bidVolume1']) - np.log(
                 self.allQuoteData[symbol].loc[:, 'askVolume1'])
             # self.allQuoteData[symbol].loc[:, 'obi_' + str(window) + '_min'] = self.allQuoteData[symbol].loc[:,
@@ -420,6 +424,62 @@ class SignalTester(object):
             # todo: 把几层obi当作一层看待，适合高价股？
             print('Calculate obi here for symbol = ', symbol, 'with lbwindow = ', window)
 
+        elif signal == 'obi_demo':
+            # todo: revise the obi signal here
+            print(paraset[0])
+            window = int(paraset[0])
+            self.allQuoteData[symbol].loc[:, 'obi'] = np.log(self.allQuoteData[symbol].loc[:, 'bidVolume1']) - np.log(
+                self.allQuoteData[symbol].loc[:, 'askVolume1'])
+
+
+
+            self.allQuoteData[symbol].loc[:, 'obi1'] = np.log(self.allQuoteData[symbol].loc[:, 'bidVolume1']+
+                                                              self.allQuoteData[symbol].loc[:, 'bidVolume2']) - np.log(
+                                                              self.allQuoteData[symbol].loc[:, 'askVolume1'])
+
+            self.allQuoteData[symbol].loc[:, 'obi2'] = np.log(self.allQuoteData[symbol].loc[:, 'bidVolume1']) - np.log(
+                                                              self.allQuoteData[symbol].loc[:, 'askVolume1']+
+                                                              self.allQuoteData[symbol].loc[:, 'askVolume2'])
+            # self.allQuoteData[symbol].loc[:, 'obi_' + str(window) + '_min'] = self.allQuoteData[symbol].loc[:,
+            #                                                                   'obi'].rolling(window * 60).mean()
+            self.allQuoteData[symbol].loc[:, 'obi_' + str(window) + '_min'] = self.allQuoteData[symbol].loc[:, 'obi'].diff(window)
+
+            askPriceDiff = self.allQuoteData[symbol]['askPrice1'].diff()
+            bidPriceDiff = self.allQuoteData[symbol]['bidPrice1'].diff()
+            midPriceChange = self.allQuoteData[symbol]['midp'].diff()
+
+            self.allQuoteData[symbol].loc[:,'priceChange'] = 1
+            self.allQuoteData[symbol].loc[midPriceChange == 0,'priceChange'] = 0
+
+            obi_change_list = list()
+            last_obi = self.allQuoteData[symbol]['obi'].iloc[0]
+            tick_count = 0
+            row_count = 0
+            for row in zip(self.allQuoteData[symbol]['priceChange'], self.allQuoteData[symbol]['obi']):
+                priceStatus = row[0]
+                obi = row[1]
+                if (priceStatus == 1) or np.isnan(priceStatus):
+                    tick_count = 0
+                    last_obi = obi
+                else:
+                    last_obi = self.allQuoteData[symbol]['obi'].iloc[row_count - tick_count]
+                    if tick_count <= window:
+                        tick_count = tick_count + 1
+
+                row_count = row_count + 1
+                obi_change = obi - last_obi
+                obi_change_list.append(obi_change)
+
+            self.allQuoteData[symbol].loc[:, 'obi'] = obi_change_list
+            positivePos = (self.allQuoteData[symbol]['obi'] >  float(paraset[2])) & (self.allQuoteData[symbol]['obi2'] > 1)
+            negativePos = (self.allQuoteData[symbol]['obi'] < -float(paraset[2])) & (self.allQuoteData[symbol]['obi1'] < -1)
+            self.allQuoteData[symbol].loc[positivePos, signal + '_' + str(window) + '_min'] = 1
+            self.allQuoteData[symbol].loc[negativePos, signal +'_' + str(window) + '_min'] = -1
+            self.allQuoteData[symbol].loc[(~positivePos) & (~negativePos), signal +'_' + str(window) + '_min'] = 0
+            # self.allQuoteData[symbol].loc[:,''] =
+            # self.allQuoteData[symbol].loc[:, 'obi' + str(window) + '_min_sum'] = self.allQuoteData[symbol].loc[:,'obi'].rolling(window * 60).sum()
+            # todo: 把几层obi当作一层看待，适合高价股？
+            print('Calculate obi here for symbol = ', symbol, 'with lbwindow = ', window)
 
 
         elif signal == 'sectorAction':
@@ -661,7 +721,7 @@ class SignalTester(object):
             # colName =
         return lbreturn
 
-    def CalSts(self, signal, symbol, lbWindow, laWindow, logReturns=pd.Series(), IFPLOT = False):
+    def CalSts(self, signal, symbol, lbWindow, laWindow, logReturns=pd.Series(), IFPLOT = False,paraset = list()):
         """
 
         :param signal: The signal name
@@ -672,7 +732,7 @@ class SignalTester(object):
         if len(logReturns) == 0:
             logReturns = self.GetLogReturnSeries(symbol, laWindow)  # use future log reuturn to calculate the WR
         data = self.allQuoteData[symbol]
-        signals = self.GetSignalSeries(signal, symbol, lbWindow)  # signal series(continuous or point)
+        signals = self.GetSignalSeries(signal, symbol, lbWindow,paraset)  # signal series(continuous or point)
         resultDf = pd.DataFrame({'lr': list(logReturns), 'sig': signals},
                                 index=self.allQuoteData[symbol].index)  # combine together.
         resultDf = resultDf[~np.isnan(resultDf['lr'])]
