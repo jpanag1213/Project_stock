@@ -68,6 +68,8 @@ class SignalTester(object):
         :param window: the future minute window(look ahead)
         :param targetTime: the current time of the data.
         :return: log return
+		ssssssssssssssssssssssss
+		ssssssssssssssssssssssss
         """
         ## add minute can use :  + datetime.timedelta(minutes = 30)
         i = bisect.bisect_left(Data.index, targetTime + datetime.timedelta(minutes=window)) - 1
