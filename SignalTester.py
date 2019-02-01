@@ -481,7 +481,142 @@ class SignalTester(object):
             # todo: 把几层obi当作一层看待，适合高价股？
             print('Calculate obi here for symbol = ', symbol, 'with lbwindow = ', window)
 
+        elif signal == 'obi_diff':
+            # todo: revise the obi signal here
+            obi_diff_ = list()
+            lth = len(self.allQuoteData[symbol].loc[:,'bidVolume1'])
+            obi_diff_.append(0)
+            bid_obi_diff_ = 0
+            ask_obi_diff_ = 0
 
+            askPriceDiff = self.allQuoteData[symbol]['askPrice1'].diff()
+            bidPriceDiff = self.allQuoteData[symbol]['bidPrice1'].diff()
+
+            for row_num in range(1,lth):
+                bid_obi_diff_ = 0
+                ask_obi_diff_ = 0
+                if bidPriceDiff[row_num] > 0:
+                    bid_obi_diff_ = (self.allQuoteData[symbol]['bidVolume1'].values[row_num] + self.allQuoteData[symbol]['bidVolume2'].values[row_num ]
+                                     - self.allQuoteData[symbol]['bidVolume1'].values[row_num -1])
+                elif bidPriceDiff[row_num] == 0:
+                    bid_obi_diff_ = self.allQuoteData[symbol]['bidVolume1'].values[row_num ] - self.allQuoteData[symbol]['bidVolume1'].values[row_num -1]
+                elif bidPriceDiff[row_num] < 0:
+                    #print(self.allQuoteData[symbol][ 'bidVolume2'].values[row_num -1])
+                    bid_obi_diff_ =( self.allQuoteData[symbol][ 'bidVolume2'].values[row_num -1] - self.allQuoteData[symbol][ 'bidVolume1'].values[row_num ] - self.allQuoteData[symbol][ 'bidVolume1'].values[row_num -1] )
+
+                if   askPriceDiff[row_num] < 0:
+                    ask_obi_diff_ = (self.allQuoteData[symbol][ 'askVolume1'].values[row_num ]+ self.allQuoteData[symbol][ 'askVolume2'].values[row_num ]
+                                     - self.allQuoteData[symbol][ 'askVolume1'].values[row_num -1])
+                elif askPriceDiff[row_num] == 0:
+                    ask_obi_diff_ = (self.allQuoteData[symbol]['askVolume1'].values[row_num ]- self.allQuoteData[symbol][ 'askVolume1'].values[row_num -1])
+                elif askPriceDiff[row_num] > 0:
+                    ask_obi_diff_ = (self.allQuoteData[symbol]['askVolume2'].values[row_num -1]- self.allQuoteData[symbol]['askVolume1'].values[row_num ]
+                                - self.allQuoteData[symbol][ 'askVolume1'].values[row_num -1])
+
+                obi_diff_.append(bid_obi_diff_ - ask_obi_diff_)
+
+            self.allQuoteData[symbol].loc[:, 'obi_diff'] = obi_diff_
+            q =self.allQuoteData[symbol]
+            positivePos = self.allQuoteData[symbol]['obi_diff'] > 500000
+            negativePos = self.allQuoteData[symbol]['obi_diff'] < -500000
+            self.allQuoteData[symbol].loc[positivePos, signal + '_' + str(window) + '_min'] = 1
+            self.allQuoteData[symbol].loc[negativePos, signal +'_' + str(window) + '_min'] = -1
+            self.allQuoteData[symbol].loc[(~positivePos) & (~negativePos), signal +'_' + str(window) + '_min'] = 0
+            # self.allQuoteData[symbol].loc[:,''] =
+            # self.allQuoteData[symbol].loc[:, 'obi' + str(window) + '_min_sum'] = self.allQuoteData[symbol].loc[:,'obi'].rolling(window * 60).sum()
+            # todo: 把几层obi当作一层看待，适合高价股？
+            print('Calculate obi here for symbol = ', symbol, 'with lbwindow = ', window)
+
+        elif signal == 'exxx_ob':
+            # todo: revise the obi signal here
+            ex_ob_ = list()
+            ex_ob_.append(0)
+            self.allQuoteData[symbol].loc[:, 'obi_'] = (self.allQuoteData[symbol].loc[:, 'bidVolume1'] +self.allQuoteData[symbol].loc[:, 'bidVolume2']
+                                                       +self.allQuoteData[symbol].loc[:, 'bidVolume3']
+                                                       )/(self.allQuoteData[symbol].loc[:, 'askVolume1'] + self.allQuoteData[symbol].loc[:, 'askVolume2']
+                                                        +self.allQuoteData[symbol].loc[:, 'askVolume3'])
+
+            lth = len(self.allQuoteData[symbol].loc[:, 'bidVolume1'])
+
+            fac = []
+            ap_list = ['askPrice1', 'askPrice2', 'askPrice3']#, 'askPrice4', 'askPrice5']
+            bp_list = ['bidPrice1', 'bidPrice2', 'bidPrice3']#, 'bidPrice4', 'bidPrice5']
+
+            av_list = ['askVolume1', 'askVolume2', 'askVolume3']#, 'askVolume4', 'askVolume5']
+            bv_list = ['bidVolume1', 'bidVolume2', 'bidVolume3']#, 'bidVolume4', 'bidVolume5']
+            for i in range(1, lth):
+
+                if (i == 1):
+                    Askp_array = np.array(())
+                    Askv_array = np.array(())
+                    bidp_array = np.array(())
+                    bidv_array = np.array(())
+                pre_ask = np.sum(Askv_array)
+                pre_bid = np.sum(bidv_array)
+                if (i > 1):
+                    bid_pos_ind = bidp_array <= self.allQuoteData[symbol].bidPrice1.values[i]
+                    ask_pos_ind = Askp_array >= self.allQuoteData[symbol].askPrice1.values[i]
+                    bidp_array = bidp_array[bid_pos_ind]
+                    Askp_array = Askp_array[ask_pos_ind]
+                    bidv_array = bidv_array[bid_pos_ind]
+                    Askv_array = Askv_array[ask_pos_ind]
+                for bp, ap, bv, av in zip(bp_list, ap_list, bv_list, av_list):
+                    if (self.allQuoteData[symbol][bp][i] <= self.allQuoteData[symbol].bidPrice1.values[i]):
+                        if (self.allQuoteData[symbol][bp][i] not in bidp_array):
+                            bidp_array = np.append(bidp_array, self.allQuoteData[symbol][bp][i])
+                            bidv_array = np.append(bidv_array, self.allQuoteData[symbol][bv][i])
+                        else:
+                            assert (len(np.where(bidp_array == self.allQuoteData[symbol][bp][i])[0]) == 1)
+                            bidv_array[np.where(bidp_array == self.allQuoteData[symbol][bp][i])[0][0]] = self.allQuoteData[symbol][bv][i]
+
+                    if (self.allQuoteData[symbol][ap][i] >= self.allQuoteData[symbol].askPrice1.values[i]):
+                        if (self.allQuoteData[symbol][ap][i] not in Askp_array):
+                            Askp_array = np.append(Askp_array, self.allQuoteData[symbol][ap][i])
+                            Askv_array = np.append(Askv_array, self.allQuoteData[symbol][av][i])
+                        else:
+                            assert (len(np.where(Askp_array == self.allQuoteData[symbol][ap][i])[0]) == 1)
+                            Askv_array[np.where(Askp_array == self.allQuoteData[symbol][ap][i])[0][0]] = self.allQuoteData[symbol][av][i]
+
+                Now_ask = np.sum(Askv_array)
+
+                Now_bid = np.sum(bidv_array)
+                if  i > 600:
+                    ex_ob_.append(  (Now_bid - pre_bid) * - (Now_ask - pre_ask)   )
+                else:
+                    ex_ob_.append(0.0)
+
+            self.allQuoteData[symbol].loc[:, 'obi_diff'] = ex_ob_
+            positivePos = (self.allQuoteData[symbol]['obi_diff'] <- 1000000  )# & (self.allQuoteData[symbol][ 'obi_'] >1.4)
+            negativePos = (self.allQuoteData[symbol]['obi_diff'] > 1000000 )# & (self.allQuoteData[symbol][ 'obi_'] <1/1.4)
+
+
+
+
+            #pd.concat(q, 0).to_csv(outputpath + './' + tradingDay + '.csv')
+            self.allQuoteData[symbol].loc[positivePos, signal + '_' + str(window) + '_min'] = 1
+            self.allQuoteData[symbol].loc[negativePos, signal +'_' + str(window) + '_min'] = -1
+            self.allQuoteData[symbol].loc[(~positivePos) & (~negativePos), signal +'_' + str(window) + '_min'] = 0
+            # self.allQuoteData[symbol].loc[:,''] =
+            # self.allQuoteData[symbol].loc[:, 'obi' + str(window) + '_min_sum'] = self.allQuoteData[symbol].loc[:,'obi'].rolling(window * 60).sum()
+            # todo: 把几层obi当作一层看待，适合高价股？
+            q = self.allQuoteData[symbol]
+            q.to_csv(self.dataSavePath + './' + str(self.tradeDate.date())+ signal+' '+symbol + '.csv')
+            print('Calculate obi here for symbol = ', symbol, 'with lbwindow = ', window)
+
+
+
+        elif signal == 'obi_diff_demo':
+            # todo: revise the obi signal here
+
+            quotevalue =self.allQuoteData[symbol]
+            pre_cur = dict()
+            columns = ['askVolume1','bidVolume1']
+            pre_cur['this'] = quotevalue.loc[:,columns].values[1:,:]
+            pre_cur['last'] = quotevalue.loc[:,columns].values[:-1, :]
+
+
+
+            print('Calculate obi here for symbol = ', symbol, 'with lbwindow = ', window)
         elif signal == 'sectorAction':
             sectors = np.unique(self.sectorData.index)
             for sector in sectors:

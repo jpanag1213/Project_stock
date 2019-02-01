@@ -40,7 +40,7 @@ def run(configfile):
             quoteData = data.quoteData[symbol]
             strategy = Strategy.Strategy(symbol, round(1000000/quoteData['midp'].iloc[-1],-2), quoteData, signal, lbwindow, lawindow, 8, 'lawindow',outputpath = './strategy/' + tradingDay, stockType = 'low')
             strategy.SummaryStrategy()
-            #strategy.Plot()
+            strategy.Plot()
             strategyResult.append(strategy.sts)
 
 
