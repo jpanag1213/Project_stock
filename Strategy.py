@@ -13,6 +13,7 @@ import SignalTester
 import pandas as pd
 import os
 import configparser
+import time
 from Utils import *
 import matplotlib.pyplot as plt
 
@@ -151,96 +152,119 @@ class Strategy(object):
         winTimes = 0
         trade_qty = 0
         trade_flag = list()
-
-        for row in zip(self.quoteData.loc[:, self.signal + '_' + str(self.lbwindow) + '_min'], self.quoteData['bidPrice1'], self.quoteData['askPrice1'], self.quoteData['midp']):
+        ''' 
+        debug list :record_ 
+        '''
+        record_ = list()
+        for row in zip(self.quoteData.loc[:, self.signal + '_' + str(self.lbwindow) + '_min'], self.quoteData['bidPrice1'], self.quoteData['askPrice1'], self.quoteData['midp'],self.quoteData.index,self.quoteData.status):
             longShort = row[0]  # 1 is long, -1 is short
             bidPrice = row[1]
             askPrice = row[2]
             lastPrice = row[3]
-            if longShort == 1:
-                if currentQty > 0:
-                    holdTime = 0  # 当有持续信号时，暂时不考虑重复开仓，防止记录麻烦。之后需要改进。因此这里需要重新记录持仓时间
-                    pnl = 0
-                    trade_flag.append(2)
-                elif currentQty < 0:
-                    pnl = -(openPrice - askPrice - openPrice * 0.0015)*currentQty
-                    trade_qty = trade_qty + abs(currentQty)
-                    count = count + 1
-                    holdTime = 0
-                    currentQty = 0
-                    totalTimes = totalTimes + 1
-                    if pnl > 0:
-                        winTimes = winTimes + 1
-                    trade_flag.append(-4)
-                elif currentQty == 0:
-                    if count < self.times:
-                        currentQty = currentQty + openQty
-                        openPrice = askPrice
-                        pnl = 0
-                        trade_flag.append(1)
+            times = row[4]
+            stats = row[5]
+            if stats == 79:
+                if longShort == 1:
+                    temp_ = str(times).split(" ")
+                    if time.strftime(temp_[1])< time.strftime('14:57:00'):
+                        if currentQty > 0:
+                            holdTime = 0  # 当有持续信号时，暂时不考虑重复开仓，防止记录麻烦。之后需要改进。因此这里需要重新记录持仓时间
+                            pnl = 0
+                            trade_flag.append(2)
+                        elif currentQty < 0:
+                            pnl = -(openPrice - askPrice - openPrice * 0.0015)*currentQty
+                            trade_qty = trade_qty + abs(currentQty)
+                            count = count + 1
+                            holdTime = 0
+                            currentQty = 0
+                            totalTimes = totalTimes + 1
+                            if pnl > 0:
+                                winTimes = winTimes + 1
+                            trade_flag.append(-4)
+                        elif currentQty == 0:
+                            if count < self.times:
+                                currentQty = currentQty + openQty
+                                openPrice = askPrice
+                                pnl = 0
+                                trade_flag.append(1)
+                            else:
+                                trade_flag.append(np.nan)
+                                ###。。。。
+                                pnl = 0
                     else:
                         trade_flag.append(np.nan)
-            elif longShort == -1:
-                if currentQty < 0:
-                    holdTime = 0  # 当有持续信号时，暂时不考虑重复开仓，防止记录麻烦。之后需要改进。因此这里需要重新记录持仓时间
-                    pnl = 0
-                    trade_flag.append(-2)
-                elif currentQty > 0:
-                    pnl = (bidPrice - openPrice - openPrice * 0.0015)*currentQty
-                    trade_qty = trade_qty + abs(currentQty)
-                    count = count + 1
-                    holdTime = 0
-                    currentQty = 0
-                    totalTimes = totalTimes + 1
-                    if pnl > 0:
-                        winTimes = winTimes + 1
-                    trade_flag.append(4)
-                elif currentQty == 0:
-                    if count < self.times:
-                        currentQty = currentQty - openQty
-                        openPrice = bidPrice
+                        ###。。。。
                         pnl = 0
-                        trade_flag.append(-1)
+                elif longShort == -1:
+                    temp_ = str(times).split(" ")
+                    if time.strftime(temp_[1])< time.strftime('14:57:00'):
+                        if currentQty < 0:
+                            holdTime = 0  # 当有持续信号时，暂时不考虑重复开仓，防止记录麻烦。之后需要改进。因此这里需要重新记录持仓时间
+                            pnl = 0
+                            trade_flag.append(-2)
+                        elif currentQty > 0:
+                            pnl = (bidPrice - openPrice - openPrice * 0.0015)*currentQty
+                            trade_qty = trade_qty + abs(currentQty)
+                            count = count + 1
+                            holdTime = 0
+                            currentQty = 0
+                            totalTimes = totalTimes + 1
+                            if pnl > 0:
+                                winTimes = winTimes + 1
+                            trade_flag.append(4)
+                        elif currentQty == 0:
+                            if count < self.times:
+                                currentQty = currentQty - openQty
+                                openPrice = bidPrice
+                                pnl = 0
+                                trade_flag.append(-1)
+                            else:
+                                trade_flag.append(np.nan)
+                                ##。。。。
+                                pnl = 0
                     else:
                         trade_flag.append(np.nan)
-
-
+                        ##。。。。
+                        pnl = 0
+                else:
+                    if currentQty == 0:
+                        pnl = 0
+                        trade_flag.append(np.nan)
+                    elif currentQty > 0:
+                        if holdTime < self.lawindow:
+                            holdTime = holdTime + 1
+                            pnl = 0
+                            trade_flag.append(np.nan)
+                        else:
+                            pnl = (bidPrice - openPrice - openPrice * 0.0015)*currentQty
+                            trade_qty = trade_qty + abs(currentQty)
+                            count = count + 1
+                            holdTime = 0
+                            currentQty = 0
+                            totalTimes = totalTimes + 1
+                            trade_flag.append(3)
+                            if pnl > 0:
+                                winTimes = winTimes + 1
+                    elif currentQty < 0:
+                        if holdTime < self.lawindow:
+                            holdTime = holdTime + 1
+                            pnl = 0
+                            trade_flag.append(np.nan)
+                        else:
+                            pnl = -(openPrice - askPrice - openPrice * 0.0015)*currentQty
+                            trade_qty = trade_qty + abs(currentQty)
+                            count = count + 1
+                            holdTime = 0
+                            currentQty = 0
+                            totalTimes = totalTimes + 1
+                            if pnl > 0:
+                                winTimes = winTimes + 1
+                            trade_flag.append(-3)
             else:
-                if currentQty == 0:
-                    pnl = 0
-                    trade_flag.append(np.nan)
-                elif currentQty > 0:
-                    if holdTime < self.lawindow:
-                        holdTime = holdTime + 1
-                        pnl = 0
-                        trade_flag.append(np.nan)
-                    else:
-                        pnl = (bidPrice - openPrice - openPrice * 0.0015)*currentQty
-                        trade_qty = trade_qty + abs(currentQty)
-                        count = count + 1
-                        holdTime = 0
-                        currentQty = 0
-                        totalTimes = totalTimes + 1
-                        trade_flag.append(3)
-                        if pnl > 0:
-                            winTimes = winTimes + 1
-                elif currentQty < 0:
-                    if holdTime < self.lawindow:
-                        holdTime = holdTime + 1
-                        pnl = 0
-                        trade_flag.append(np.nan)
-                    else:
-                        pnl = -(openPrice - askPrice - openPrice * 0.0015)*currentQty
-                        trade_qty = trade_qty + abs(currentQty)
-                        count = count + 1
-                        holdTime = 0
-                        currentQty = 0
-                        totalTimes = totalTimes + 1
-                        if pnl > 0:
-                            winTimes = winTimes + 1
-                        trade_flag.append(-3)
+                pnl = 0
+                trade_flag.append(np.nan)
 
-
+            record_.append(times)
             currentQtyList.append(self.qty + currentQty)
             cumpnlList.append(cumpnl + pnl + currentQty * (lastPrice - openPrice))
             if pnl != 0:
@@ -262,8 +286,14 @@ class Strategy(object):
         self.sts.loc[self.symbol,'trade_qty'] = trade_qty
         self.sts.loc[self.symbol,'times'] = totalTimes
         self.sts.loc[self.symbol,'total_qty'] = self.qty
+        self.sts.loc[self.symbol, 'actualpnl'] = cumpnl
 
-
+        if self.symbol == '601669.SH':
+        #    print(self.qty)
+        #    print(lastPrice)
+         #   print(cumpnl)
+            df_ = pd.DataFrame([currentQtyList,record_,trade_flag])
+            df_.to_csv('./pnl.csv')
         return 0
 
 

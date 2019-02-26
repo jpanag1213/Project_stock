@@ -15,6 +15,7 @@ import os
 import configparser
 from Utils import *
 import Strategy
+
 import time
 def run(configfile):
 
@@ -22,7 +23,10 @@ def run(configfile):
     # symbols = ['000001.SZ']
     # exchange = symbol.split('.')[1].lower()
     symbols, dataPath, dataReadType, tradingDays, outputpath, signal, lbwindow, lawindow,paraset= ConfigReader(configfile)
+    print(tradingDays)
+    stats_ = list()
     for tradingDay in tradingDays:
+        #print(tradingDay)
         tradingDay = tradingDay.replace('-','')
         print('Processing tradingday = ', tradingDay)
         tradingSymbols = list(symbols[list(
@@ -36,16 +40,24 @@ def run(configfile):
         stsDf = list()
         strategyResult = list()
         for symbol in tradingSymbols:
-            stsDf.append(signalTester.CheckSignal(symbol,signal,lbwindow,lawindow,paraset))
+            temp = signalTester.CheckSignal(symbol,signal,lbwindow,lawindow,paraset)
+            if temp is not None:
+                stsDf.append(temp)
+
             quoteData = data.quoteData[symbol]
             strategy = Strategy.Strategy(symbol, round(1000000/quoteData['midp'].iloc[-1],-2), quoteData, signal, lbwindow, lawindow, 8, 'lawindow',outputpath = './strategy/' + tradingDay, stockType = 'low')
             strategy.SummaryStrategy()
             strategy.Plot()
             strategyResult.append(strategy.sts)
-
-
-        pd.concat(stsDf,0).to_csv(outputpath+'./' + tradingDay + '.csv')
-        pd.concat(strategyResult,0).to_csv('./strategy/' + tradingDay + '.csv')
+            if signal == "stats_demo":
+                chance_ = sum(quoteData.loc[:,"chance"])  / (len((quoteData.loc[:,"chance"])) - 100)
+                stats_.append([tradingDay,symbol,chance_,quoteData.midp_.values[-1]])
+        #print(len(stsDf))
+        if len(stsDf) > 0:
+            ##保证至少有1
+            print(tradingDay)
+            pd.concat(stsDf,0).to_csv(outputpath+'./' + tradingDay + '+obi_p.csv')
+            pd.concat(strategyResult,0).to_csv('./strategy/' + tradingDay + '+obi_p.csv')
 
     return 0
 
@@ -151,8 +163,9 @@ def ConfigReader(configFile):
     paraset             = parser.get('Signal','paraset')
 
     paraset = paraset.split('-')
-    print(paraset)
+
     tradingDays     = pd.read_csv(tradingDayFile, index_col=0, parse_dates=True)
+    #print(tradingDays)
     # main_future     = pd.read_csv(mainFutureFile,index_col=0,parse_dates=True)
     symbols = pd.read_csv(symbolfile,encoding='oem').loc[:,'secucode']
 
@@ -167,10 +180,12 @@ def ConfigReader(configFile):
         dataPath = dataPathCsv
     else:
         dataPath = ''
+    #print(dataPath)
 
     return symbols, dataPath, dataReadType, tradingDays, outputpath, signal, lbwindow, lawindow,paraset
 
 if __name__ == '__main__':
+
     """
     this script is the main function to see whether the signal is useful
     """
@@ -178,6 +193,8 @@ if __name__ == '__main__':
     # CalculatreHisData('./configs/signal_test.txt')
 
     t1 =  time.clock()
-    run('./configs/signal_test.txt')
+    #run('./configs/signal_test.txt')
+    ##feature _test
+    run('./configs/signal_test_2.txt')
     t2 = time.clock()
     print(t2-t1)

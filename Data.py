@@ -274,6 +274,7 @@ class Data(object):
 
         """ Read data from file"""
         tradeData = self.ReadFile(dataPath,symbol,tradeDate,dataType=type)
+        #print(dataPath)
         tradeData.loc[:, ' nVolume'] = tradeData.loc[:, ' nVolume'] * self.volumeMultiplier
         """ Convert the data into the type we need"""
         sampleFrq = '1S' # aggregate data in one second
@@ -704,6 +705,7 @@ class Data(object):
                 # data_key = 'trade_' + symbol.replace('.','') + '_' + self.tradeDate.replace('-','')
                 # tradeData = self.hdf_buffer.read(data_key)
                 # if tradeData.empty:
+
                 tradeDataQueue[symbol] = self.ReadSingleTradeData(self.dataPath,symbol,self.tradeDate,'Trade')
                     # self.hdf_buffer.write(data_key,tradeData)
                 # else:
