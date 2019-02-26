@@ -676,7 +676,7 @@ class SignalTester(object):
                 ask_obi = row[1]
                 pric = row[2]
                 obi = row[3]
-                if pric == price:
+                if abs(pric - price)<0.0001:
                     bid_obi_list.append(ask_obi)
                     ask_obi_list.append(bid_obi)
                 elif ((pric - price) < 0.006) & ((pric - price) > 0.004):
@@ -701,8 +701,11 @@ class SignalTester(object):
                     ask_obi_list.append(bid_obi)
                     price = pric
                 else:
+                    print((pric - price))
                     bid_obi_list.append(ask_obi)
                     ask_obi_list.append(bid_obi)
+
+
                 node_price.append(price)
             self.allQuoteData[symbol].loc[:, 'BID_o'] = bid_obi_list
             self.allQuoteData[symbol].loc[:, 'ASK_o'] = ask_obi_list
@@ -731,18 +734,22 @@ class SignalTester(object):
                 priceStatus = row[0]
                 obi_a = row[1]
                 obi_b = row[2]
-                if (priceStatus == 1) or np.isnan(priceStatus):
-                    tick_count = 0
-                    last_obi_bid = obi_b
-                    last_obi_ask = obi_a
-                else:
-                    last_obi_bid = self.allQuoteData[symbol].loc[:, 'BID_o'].iloc[row_count - tick_count]
-                    last_obi_ask = self.allQuoteData[symbol].loc[:, 'ASK_o'].iloc[row_count - tick_count]
                 if np.isnan(obi_a):
                     tick_ask_count = 0
 
                 if np.isnan(obi_b):
                     tick_bid_count = 0
+
+                if (priceStatus == 1) or np.isnan(priceStatus):
+                    tick_count = 0
+                    last_obi_bid = obi_b
+                    last_obi_ask = obi_a
+                    tick_ask_count = 0
+                    tick_bid_count = 0
+
+                else:
+                    last_obi_bid = self.allQuoteData[symbol].loc[:, 'BID_o'].iloc[row_count - tick_bid_count]
+                    last_obi_ask = self.allQuoteData[symbol].loc[:, 'ASK_o'].iloc[row_count - tick_ask_count]
 
                 tick_bid_count = tick_bid_count +1
                 tick_ask_count = tick_ask_count +1
@@ -760,156 +767,16 @@ class SignalTester(object):
             self.allQuoteData[symbol].loc[:, 'tick_bid'] = tick_bid
             self.allQuoteData[symbol].loc[:, 'tick_ask'] = tick_ask
             nod_mid = self.allQuoteData[symbol].loc[:, 'midp'] - self.allQuoteData[symbol].loc[:, 'node_price']
-            positivePos =    (nod_mid > 0 )&(self.allQuoteData[symbol].loc[:, 'obi_bid_change'] >6)
-            negativePos = (nod_mid < 0 )&(self.allQuoteData[symbol].loc[:, 'obi_ask_change'] <-6)
+            positivePos =    (nod_mid > 0 )&(self.allQuoteData[symbol].loc[:, 'obi_bid_change'] >7)
+            negativePos = (nod_mid < 0 )&(self.allQuoteData[symbol].loc[:, 'obi_ask_change'] <-7)
             self.allQuoteData[symbol].loc[positivePos, signal + '_' + str(window) + '_min'] = 1
             self.allQuoteData[symbol].loc[negativePos, signal +'_' + str(window) + '_min'] = -1                                         
 
 
             self.allQuoteData[symbol].loc[(~positivePos) & (~negativePos), signal +'_' + str(window) + '_min'] = 0
-            self.allQuoteData[symbol].to_csv(self.dataSavePath + './' + str(self.tradeDate.date()) + signal + ' ' + symbol + '.csv')
+            #self.allQuoteData[symbol].to_csv(self.dataSavePath + './' + str(self.tradeDate.date()) + signal + ' ' + symbol + '.csv')
             print('Calculate obi here for symbol = ', symbol, 'with lbwindow = ', window)
-        elif signal =='obi_8':
-            self.allQuoteData[symbol].loc[:, 'obi'] = np.log(self.allQuoteData[symbol].loc[:, 'bidVolume1']) - np.log(
-                self.allQuoteData[symbol].loc[:, 'askVolume1'])
-            # self.allQuoteData[symbol].loc[:, 'obi_' + str(window) + '_min'] = self.allQuoteData[symbol].loc[:,
-            #                                                                   'obi'].rolling(window * 60).mean()
-            self.allQuoteData[symbol].loc[:, 'obi_' + str(window) + '_min'] = self.allQuoteData[symbol].loc[:, 'obi'].diff(window)
-            # positivePos = self.allQuoteData[symbol]['obi_' + str(window) + '_min'] > 8
-            # negativePos = self.allQuoteData[symbol]['obi_' + str(window) + '_min'] < -8
-            # self.allQuoteData[symbol].loc[positivePos, 'obi_' + str(window) + '_min'] = 1
-            # self.allQuoteData[symbol].loc[negativePos, 'obi_' + str(window) + '_min'] = -1
-            # self.allQuoteData[symbol].loc[(~positivePos) & (~negativePos), 'obi_' + str(window) + '_min'] = 0'''''
-            askPriceDiff = self.allQuoteData[symbol]['askPrice1'].diff()
-            bidPriceDiff = self.allQuoteData[symbol]['bidPrice1'].diff()
-            midPriceChange = self.allQuoteData[symbol]['midp'].diff()
 
-            self.allQuoteData[symbol].loc[:,'priceChange'] = 1
-            self.allQuoteData[symbol].loc[midPriceChange == 0,'priceChange'] = 0
-
-            obi_change_list = list()
-            last_obi = self.allQuoteData[symbol]['obi'].iloc[0]
-            tick_count = 0
-            row_count = 0
-            for row in zip(self.allQuoteData[symbol]['priceChange'], self.allQuoteData[symbol]['obi']):
-                priceStatus = row[0]
-                obi = row[1]
-                if (priceStatus == 1) or np.isnan(priceStatus):
-                    tick_count = 0
-                    last_obi = obi
-                else:
-                    last_obi = self.allQuoteData[symbol]['obi'].iloc[row_count - tick_count]
-                    if tick_count <= window:
-                        tick_count = tick_count + 1
-
-                row_count = row_count + 1
-                obi_change = obi - last_obi
-                obi_change_list.append(obi_change)
-
-            self.allQuoteData[symbol].loc[:, 'obi_1'] = obi_change_list
-
-            self.allQuoteData[symbol].loc[:, 'midp'] = self.allQuoteData[symbol].loc[:, 'midp']
-            self.allQuoteData[symbol].loc[:, 'bid_obi'] = np.log(
-                self.allQuoteData[symbol].loc[:, 'bidVolume1'] + self.allQuoteData[symbol].loc[:,
-                                                                 'bidVolume2']) - np.log(
-                self.allQuoteData[symbol].loc[:, 'askVolume1'])
-            self.allQuoteData[symbol].loc[:, 'ask_obi'] = np.log(
-                self.allQuoteData[symbol].loc[:, 'bidVolume1']) - np.log(
-                self.allQuoteData[symbol].loc[:, 'askVolume1'] + self.allQuoteData[symbol].loc[:, 'askVolume2'])
-            self.allQuoteData[symbol].loc[:, 'obi'] = np.log(self.allQuoteData[symbol].loc[:, 'bidVolume1']) - np.log(
-                self.allQuoteData[symbol].loc[:, 'askVolume1'])
-            price = self.allQuoteData[symbol].loc[:, 'midp'].iloc[0]
-            node_price = list()
-            bid_obi_list = list()
-            ask_obi_list = list()
-            for row in zip(self.allQuoteData[symbol].loc[:, 'bid_obi'], self.allQuoteData[symbol].loc[:, 'ask_obi'],
-                           self.allQuoteData[symbol].loc[:, 'midp'], self.allQuoteData[symbol].loc[:, 'obi']):
-                bid_obi = row[0]
-                ask_obi = row[1]
-                pric = row[2]
-                obi = row[3]
-                if pric == price:
-                    bid_obi_list.append(ask_obi)
-                    ask_obi_list.append(bid_obi)
-                elif ((pric - price) < 0.006) & ((pric - price) > 0.004):
-                    bid_obi_list.append(obi)
-                    ask_obi_list.append(np.nan)
-                elif ((pric - price) < -0.004) & ((pric - price) > -0.006):
-                    bid_obi_list.append(np.nan)
-                    ask_obi_list.append(obi)
-
-                elif ((pric - price) < 0.011) & ((pric - price) > 0.009):
-                    bid_obi_list.append(bid_obi)
-                    ask_obi_list.append(np.nan)
-                elif ((pric - price) > - 0.011) & ((pric - price) < - 0.009):
-                    bid_obi_list.append(np.nan)
-                    ask_obi_list.append(ask_obi)
-                elif ((pric - price) > 0.011):
-                    bid_obi_list.append(ask_obi)
-                    ask_obi_list.append(bid_obi)
-                    price = pric
-                elif ((pric - price) < -0.011):
-                    bid_obi_list.append(ask_obi)
-                    ask_obi_list.append(bid_obi)
-                    price = pric
-                else:
-                    bid_obi_list.append(ask_obi)
-                    ask_obi_list.append(bid_obi)
-                node_price.append(price)
-            self.allQuoteData[symbol].loc[:, 'BID_o'] = bid_obi_list
-            self.allQuoteData[symbol].loc[:, 'ASK_o'] = ask_obi_list
-            self.allQuoteData[symbol].loc[:, 'node_price'] = node_price
-
-            node_diff = self.allQuoteData[symbol].loc[:, 'node_price'].diff()
-            price_change = abs(node_diff) > 0.011
-            self.allQuoteData[symbol].loc[:, 'node_price_change'] = 0
-            self.allQuoteData[symbol].loc[price_change, 'node_price_change'] = 1
-
-            # self.allQuoteData[symbol].loc[:, 'obi_' + str(window) + '_min'] = self.allQuoteData[symbol].loc[:,
-            #                                                                 'obi'].rolling(window * 60).mean()
-
-            obi_bid_change = list()
-            obi_ask_change = list()
-            last_obi = self.allQuoteData[symbol].loc[:, 'obi'].iloc[0]
-            last_obi_bid = self.allQuoteData[symbol].loc[:, 'BID_o'].iloc[0]
-            last_obi_ask = self.allQuoteData[symbol].loc[:, 'ASK_o'].iloc[0]
-            tick_count = 0
-            row_count = 0
-            for row in zip(self.allQuoteData[symbol].loc[:, 'node_price_change'],
-                           self.allQuoteData[symbol].loc[:, 'ASK_o'], self.allQuoteData[symbol].loc[:, 'BID_o']):
-                priceStatus = row[0]
-                obi_a = row[1]
-                obi_b = row[2]
-                if (priceStatus == 1) or np.isnan(priceStatus):
-                    tick_count = 0
-                    last_obi_bid = obi_b
-                    last_obi_ask = obi_a
-                else:
-                    last_obi_bid = self.allQuoteData[symbol].loc[:, 'BID_o'].iloc[row_count - tick_count]
-                    last_obi_ask = self.allQuoteData[symbol].loc[:, 'ASK_o'].iloc[row_count - tick_count]
-
-                tick_count = tick_count + 1
-                row_count = row_count + 1
-                obi_change_b = obi_b - last_obi_bid
-                obi_change_a = obi_a - last_obi_ask
-
-                obi_bid_change.append(obi_change_b)
-                obi_ask_change.append(obi_change_a)
-
-            self.allQuoteData[symbol].loc[:, 'obi_bid_change'] = obi_bid_change
-            self.allQuoteData[symbol].loc[:, 'obi_ask_change'] = obi_ask_change
-            nod_mid = self.allQuoteData[symbol].loc[:, 'midp'] - self.allQuoteData[symbol].loc[:, 'node_price']
-
-            positivePos =    (nod_mid > 0 )&(self.allQuoteData[symbol].loc[:, 'obi_bid_change'] >6)&(self.allQuoteData[symbol]['obi_1'] >4)
-            negativePos = (nod_mid < 0 )&(self.allQuoteData[symbol].loc[:, 'obi_ask_change'] <-6)&(self.allQuoteData[symbol]['obi_1'] <-4)
-            self.allQuoteData[symbol].loc[positivePos, signal + '_' + str(window) + '_min'] = 1
-            self.allQuoteData[symbol].loc[negativePos, signal +'_' + str(window) + '_min'] = -1
-
-
-            self.allQuoteData[symbol].loc[(~positivePos) & (~negativePos), signal +'_' + str(window) + '_min'] = 0
-            self.allQuoteData[symbol].to_csv(self.dataSavePath + './' + str(self.tradeDate.date()) + signal + ' ' + symbol + '.csv')
-
-            print('Calculate obi here for symbol = ', symbol, 'with lbwindow = ', window)
         elif signal == 'stats_demo':
             # todo: revise the obi signal here
             stats_list = list()

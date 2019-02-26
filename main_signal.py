@@ -56,9 +56,8 @@ def run(configfile):
         if len(stsDf) > 0:
             ##保证至少有1
             print(tradingDay)
-            pd.concat(stsDf,0).to_csv(outputpath+'./' + tradingDay + '+obi_p.csv')
-            pd.concat(strategyResult,0).to_csv('./strategy/' + tradingDay + '+obi_p.csv')
-
+            pd.concat(stsDf,0).to_csv(outputpath+'./' + tradingDay + '+obi_t.csv')
+            pd.concat(strategyResult,0).to_csv('./strategy/' + tradingDay + '+obi_t.csv')
     return 0
 
 def CalculatreHisData(configfile):

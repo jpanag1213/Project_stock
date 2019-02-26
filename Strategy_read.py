@@ -233,7 +233,7 @@ if __name__ == '__main__':
 
     #fm_o =  [file for file in filelist_all if (file[9] == 'c')&(file[17] == 'a')]
     #fm_o =  [file for file in filelist_all if (file[9] == 't')&(file[-5] == 'z')]
-    fm_o =  [file for file in filelist_all if (file[13] == 'p')]
+    fm_o =  [file for file in filelist_all if (file[13] == 't')]
     dm_o,pnl,times,wr,trade_rate = ReadTest(fm_o)
     ref_data = pd.read_csv(refPath + 'stock_price_mkt.csv')
     ref_data.index = ref_data.loc[:,'secucode']
