@@ -256,7 +256,11 @@ class Stats(object):
 
 
         return 0
+    def data_link(self,symbol):
+        quotedata = self.quoteData[symbol]
 
+        print(1)
+        return 0
     '''
     Test：统计的内容
     尝试以下两个现象
@@ -276,14 +280,15 @@ if __name__ == '__main__':
     dataPath = '//192.168.0.145/data/stock/wind'
     ## /sh201707d/sh_20170703
     tradeDate = '20190218'
-    symbols = ['601000.SH']
+    symbols = ['IC.CF']
     # exchange = symbol.split('.')[1].lower()
     #print(dataPath)
-    data = Data.Data(dataPath, symbols, tradeDate,dataReadType= 'gzip', RAWDATA = 'True')
-    stats   = Stats(symbols,data.quoteData)
+    data = Data.Data(dataPath, '', tradeDate,futureSymbols = symbols ,dataReadType= 'gzip', RAWDATA = 'True')
+    stats   = Stats(symbols,data.quoteData,outputpath = './IF_TICK/')
 
+    print(data.futureData[symbols[0]].loc[:,'midp'])
     # signalTester.CompareSectorAndStock(symbols[0], orderType='netMainOrderCashFlow')
     #stats.distribution(symbols[0])
 
-    stats.obi(symbols[0])
+
     print('Test end')

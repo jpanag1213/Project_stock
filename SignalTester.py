@@ -50,6 +50,10 @@ class SignalTester(object):
             self.Data = Data.tradeData
             # self.signals        = Data.tradeqa
             self.priceColumn = ' nPrice'
+        elif type is 'Future':
+            self.allQuoteData = Data.futureData
+            self.priceColumn = 'midp'
+
         self.logReturns = dict()
         self.dailyData = dailyData
         self.tradeDate = parse(tradeDate) # parse the str into datetime format
@@ -278,6 +282,7 @@ class SignalTester(object):
             #ax.set_title('Signal ' + signal + ' with midquote change of stock ' + symbol + ' lbwindow = ' + str(lbWindow))
             plt.savefig(savePath + '/' + symbol + '.jpg')
             plt.savefig(savePath + '/' + symbol +str(self.tradeDate.date()).replace('-','')+ '.jpg')
+            #print(savePath + '/' + symbol +str(self.tradeDate.date()).replace('-','')+ '.jpg')
             plt.close('all')
 
     def CalculateCOR(self, signal,symbol,lbWindow, logReturns, type='spearman',paraset = list()):
@@ -767,8 +772,8 @@ class SignalTester(object):
             self.allQuoteData[symbol].loc[:, 'tick_bid'] = tick_bid
             self.allQuoteData[symbol].loc[:, 'tick_ask'] = tick_ask
             nod_mid = self.allQuoteData[symbol].loc[:, 'midp'] - self.allQuoteData[symbol].loc[:, 'node_price']
-            positivePos =    (nod_mid > 0 )&(self.allQuoteData[symbol].loc[:, 'obi_bid_change'] >7)
-            negativePos = (nod_mid < 0 )&(self.allQuoteData[symbol].loc[:, 'obi_ask_change'] <-7)
+            positivePos =    (nod_mid< 0.006 )&(self.allQuoteData[symbol].loc[:, 'obi_bid_change'] >6)
+            negativePos = (nod_mid >-0.006 )&(self.allQuoteData[symbol].loc[:, 'obi_ask_change'] <-6)
             self.allQuoteData[symbol].loc[positivePos, signal + '_' + str(window) + '_min'] = 1
             self.allQuoteData[symbol].loc[negativePos, signal +'_' + str(window) + '_min'] = -1                                         
 
@@ -1403,6 +1408,7 @@ class SignalTester(object):
             self.allQuoteData[symbol].loc[negativePos, signal +'_' + str(window) + '_min'] = -1
             #self.allQuoteData[symbol].to_csv(self.dataSavePath + './' + str(self.tradeDate.date()) + signal + ' ' + symbol + 'quote_order.csv')
             self.allQuoteData[symbol].loc[(~positivePos) & (~negativePos), signal +'_' + str(window) + '_min'] = 0
+
             print('Calculate obi here for symbol = ', symbol, 'with lbwindow = ', window,'date'+str(self.tradeDate.date()))
 
 
@@ -1955,8 +1961,11 @@ class SignalTester(object):
         win = 0
         for itime in posDf.index:
             timePos = pd.Index(data.index).get_loc(itime)
+            #if isinstance(timePos,np.int64) is False:
+
             if isinstance(timePos,np.int64) is False:
                 timePos = timePos.stop
+
             if timePos > (data.shape[0] - laWindow):  # should pass the laWindow to here
                 endPos = data.shape[0]
             else:

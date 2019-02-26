@@ -41,9 +41,14 @@ def search_sorted_subsets(df, searches):
         subsets = list(itertools.chain(*[search_sorted_subsets_field(subset, field, values) for subset in subsets]))
     return pd.DataFrame(np.vstack(subsets) if len(subsets)>0 else None,columns=df.columns).convert_objects()
 
-def CheckStockSuspend(symbol, dataPath, rundt):
+def CheckStockSuspend(symbol, dataPath, rundt,Asset = ''):
     exchange = symbol.split('.')[1].upper()
     miccode = symbol.split('.')[0]
-    dataPath = dataPath + '/Transaction/' + exchange + '/' + rundt[:6] + '/' + rundt + '/'
-    fileName = dataPath + '/' + miccode + '_' + rundt + '.csv.gz'
+    if Asset == 'Future':
+        dataPath = dataPath + '/FutTick/' + exchange + '/' + rundt[:6] + '/' + rundt + '/'
+        fileName = dataPath + '/' + miccode + '_' + rundt + '.csv.gz'
+        print(fileName + '   '+'Utils_CheckStock_suspend')
+    else:
+        dataPath = dataPath + '/Transaction/' + exchange + '/' + rundt[:6] + '/' + rundt + '/'
+        fileName = dataPath + '/' + miccode + '_' + rundt + '.csv.gz'
     return os.path.exists(fileName)

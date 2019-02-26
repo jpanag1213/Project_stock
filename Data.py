@@ -916,7 +916,8 @@ class Data(object):
                 # dataPath = dataPath + '/wd_order/tick' + tradeDate[:4] + 'd/' + exchange + tradeDate[
 
                 #                                                                            :6] + 'd' + '/' + exchange + '_' + tradeDate
-
+                ##exchange CF
+                ##midcode _IC
                 dataPath = dataPath + '/FutTick/' + exchange + '/' + tradeDate[:6] + '/' + tradeDate + '/'
 
                 fileName = dataPath + '/' + miccode + '_' + tradeDate + '.csv.gz'
@@ -935,9 +936,13 @@ class Data(object):
 
                     'askVolume1', 'askVolume2', 'askVolume3', 'askVolume4', 'askVolume5',
 
+
+
                     # 'open_interest', 'open_qty', 'close_qty']
 
                     'open_interest','pre_open_interest', 'open_qty','close_qty']
+
+
 
                 timeColumn = 'exchangeTime'
 

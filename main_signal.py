@@ -22,7 +22,7 @@ def run(configfile):
     # dataPath = 'E:/data/stock/wind'
     # symbols = ['000001.SZ']
     # exchange = symbol.split('.')[1].lower()
-    symbols, dataPath, dataReadType, tradingDays, outputpath, signal, lbwindow, lawindow,paraset= ConfigReader(configfile)
+    symbols, dataPath, dataReadType, tradingDays, outputpath, signal, lbwindow, lawindow,paraset,Asset= ConfigReader(configfile)
     print(tradingDays)
     stats_ = list()
     for tradingDay in tradingDays:
@@ -30,12 +30,19 @@ def run(configfile):
         tradingDay = tradingDay.replace('-','')
         print('Processing tradingday = ', tradingDay)
         tradingSymbols = list(symbols[list(
-            map(lambda symbol: CheckStockSuspend(symbol, dataPath, tradingDay),
+            map(lambda symbol: CheckStockSuspend(symbol, dataPath, tradingDay,Asset),
                 symbols.values.tolist()))])
         if len(tradingSymbols) == 0:
             continue
-        data = Data.Data(dataPath, tradingSymbols, tradingDay,dataReadType= dataReadType, RAWDATA = 'True')
-        signalTester = SignalTester.SignalTester(data, dailyData=pd.DataFrame, tradeDate=tradingDay, symbol=tradingSymbols, dataSavePath=outputpath)
+
+        if Asset == 'Future':
+            data = Data.Data(dataPath, '', tradingDay, futureSymbols=tradingSymbols, dataReadType=dataReadType, RAWDATA='True')
+
+            signalTester = SignalTester.SignalTester(data, dailyData=pd.DataFrame, tradeDate=tradingDay, symbol=tradingSymbols, dataSavePath=outputpath,type = 'Future')
+        else:
+            data = Data.Data(dataPath, tradingSymbols, tradingDay, dataReadType=dataReadType, RAWDATA='True')
+            # todo signalTester
+            signalTester = SignalTester.SignalTester(data, dailyData=pd.DataFrame, tradeDate=tradingDay,symbol=tradingSymbols, dataSavePath=outputpath)
         # signalTester.CompareSectorAndStock(symbols[0], orderType='netMainOrderCashFlow')
         stsDf = list()
         strategyResult = list()
@@ -44,8 +51,16 @@ def run(configfile):
             if temp is not None:
                 stsDf.append(temp)
 
-            quoteData = data.quoteData[symbol]
-            strategy = Strategy.Strategy(symbol, round(1000000/quoteData['midp'].iloc[-1],-2), quoteData, signal, lbwindow, lawindow, 8, 'lawindow',outputpath = './strategy/' + tradingDay, stockType = 'low')
+            if Asset =='Future':
+                quoteData = data.futureData[symbol]
+            else:
+                quoteData = data.quoteData[symbol]
+
+            ##todo future strategy
+            if Asset == 'Future':
+                strategy = Strategy.Strategy(symbol, round(1000000/quoteData['midp'].iloc[-1],-2), quoteData, signal, lbwindow, lawindow, 8, 'lawindow',outputpath = './strategy/' + tradingDay, stockType = 'low',asset = 'Future')
+            else:
+                strategy = Strategy.Strategy(symbol, round(1000000/quoteData['midp'].iloc[-1],-2), quoteData, signal, lbwindow, lawindow, 8, 'lawindow',outputpath = './strategy/' + tradingDay, stockType = 'low')
             strategy.SummaryStrategy()
             strategy.Plot()
             strategyResult.append(strategy.sts)
@@ -56,12 +71,12 @@ def run(configfile):
         if len(stsDf) > 0:
             ##保证至少有1
             print(tradingDay)
-            pd.concat(stsDf,0).to_csv(outputpath+'./' + tradingDay + '+obi_t.csv')
-            pd.concat(strategyResult,0).to_csv('./strategy/' + tradingDay + '+obi_t.csv')
+            pd.concat(stsDf,0).to_csv(outputpath+'./' + tradingDay + '+CS1_test.csv')
+            pd.concat(strategyResult,0).to_csv('./strategy/' + tradingDay + '+CS1_test.csv')
     return 0
 
 def CalculatreHisData(configfile):
-    symbols, dataPath, dataReadType, tradingDays, outputpath, signal, lbwindow, lawindow,paraset = ConfigReader(configfile)
+    symbols, dataPath, dataReadType, tradingDays, outputpath, signal, lbwindow, lawindow, paraset, Asset = ConfigReader(configfile)
     stdDf = pd.DataFrame(columns=symbols,index=tradingDays)
     for tradingDay in tradingDays:
         tradeDate = tradingDay.replace('-','')
@@ -106,7 +121,7 @@ def CalculatreHisData(configfile):
     return 0
 
 def SummaryResult(configfile):
-    symbols, dataPath, dataReadType, tradingDays, outputpath, signal, lbwindow, lawindow,paraset = ConfigReader(configfile)
+    symbols, dataPath, dataReadType, tradingDays, outputpath, signal, lbwindow, lawindow,paraset,Asset = ConfigReader(configfile)
     # stdDf = pd.DataFrame(columns=symbols, index=tradingDays)
     stsDfList = list()
     for tradingDay in tradingDays:
@@ -153,6 +168,7 @@ def ConfigReader(configFile):
     dataReadType        = parser.get('DEFAULT', 'dataReadType')
     mainFutureFile      = parser.get('DEFAULT', 'mainFutureFile')
     outputpath          = parser.get('DEFAULT', 'outputpath')
+    Asset               = parser.get('DEFAULT', 'asset')
 
     signal              = parser.get('Signal','signal')
     lbwindow            = int(parser.get('Signal','lbwindow'))
@@ -181,7 +197,7 @@ def ConfigReader(configFile):
         dataPath = ''
     #print(dataPath)
 
-    return symbols, dataPath, dataReadType, tradingDays, outputpath, signal, lbwindow, lawindow,paraset
+    return symbols, dataPath, dataReadType, tradingDays, outputpath, signal, lbwindow, lawindow,paraset,Asset
 
 if __name__ == '__main__':
 
@@ -194,6 +210,6 @@ if __name__ == '__main__':
     t1 =  time.clock()
     #run('./configs/signal_test.txt')
     ##feature _test
-    run('./configs/signal_test_2.txt')
+    run('./configs/signal_test_ic.txt')
     t2 = time.clock()
     print(t2-t1)

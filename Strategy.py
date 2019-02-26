@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 
 class Strategy(object):
 
-    def __init__(self, symbol, qty, quoteData, signal, lbwindow, lawindow, times, closeType,outputpath = './strategy', stockType = 'low'):
+    def __init__(self, symbol, qty, quoteData, signal, lbwindow, lawindow, times, closeType,outputpath = './strategy', stockType = 'low',asset = ''):
         self.symbol = symbol
         self.qty = qty
         self.quoteData = quoteData
@@ -29,9 +29,13 @@ class Strategy(object):
         self.times = times
         self.closeType = closeType
         self.stockType = stockType
-
+        self.asset   = asset
         self.sts = pd.DataFrame(columns = ['wr','pnl','times','todayup','trade_qty','total_qty'],index=[symbol])
         self.outputpath = outputpath
+        if asset == 'Future':
+            self.fee = 4.8/10000
+        else:
+            self.fee = 0.0015
         if os.path.exists(outputpath) is False:
             os.makedirs(outputpath)
 
@@ -138,13 +142,19 @@ class Strategy(object):
         :param stockType: str, the low price stock or high price stock
         :return: pd.DataFrame, strategy summary of the stock.
         """
-
+        fee = self.fee
         currentQty = 0  # 当前持仓，用来看当前仓位的变化
         pnl = 0  #
         currentQtyList = list()
         holdTime = 0  # 用来记录持仓时长
         count = 0  # 记录交易次数
-        openQty = round(self.qty / self.times, -2)
+
+        if self.asset =='Future':
+            openQty = round(self.qty / self.times/(200/12))
+            print(openQty)
+        else:
+            openQty = round(self.qty / self.times, -2)
+
         cumpnl = 0
         cumpnlList = list()
         openPrice = 0
@@ -155,7 +165,9 @@ class Strategy(object):
         ''' 
         debug list :record_ 
         '''
+        temp_tick = 0
         record_ = list()
+        #self.quoteData.to_csv('./'+self.symbol+'_test_.csv')
         for row in zip(self.quoteData.loc[:, self.signal + '_' + str(self.lbwindow) + '_min'], self.quoteData['bidPrice1'], self.quoteData['askPrice1'], self.quoteData['midp'],self.quoteData.index,self.quoteData.status):
             longShort = row[0]  # 1 is long, -1 is short
             bidPrice = row[1]
@@ -163,16 +175,20 @@ class Strategy(object):
             lastPrice = row[3]
             times = row[4]
             stats = row[5]
-            if stats == 79:
+            temp_tick = temp_tick + 1
+            if (stats == 79):
                 if longShort == 1:
                     temp_ = str(times).split(" ")
+
                     if time.strftime(temp_[1])< time.strftime('14:57:00'):
+
                         if currentQty > 0:
                             holdTime = 0  # 当有持续信号时，暂时不考虑重复开仓，防止记录麻烦。之后需要改进。因此这里需要重新记录持仓时间
                             pnl = 0
                             trade_flag.append(2)
                         elif currentQty < 0:
-                            pnl = -(openPrice - askPrice - openPrice * 0.0015)*currentQty
+                            pnl = -(openPrice - askPrice - openPrice * fee)*currentQty
+                            #pnl = -(openPrice - askPrice - openPrice * 0.0015)*currentQty
                             trade_qty = trade_qty + abs(currentQty)
                             count = count + 1
                             holdTime = 0
@@ -203,7 +219,8 @@ class Strategy(object):
                             pnl = 0
                             trade_flag.append(-2)
                         elif currentQty > 0:
-                            pnl = (bidPrice - openPrice - openPrice * 0.0015)*currentQty
+                            pnl = (bidPrice - openPrice - openPrice * fee)*currentQty
+                            #pnl = (bidPrice - openPrice - openPrice * 0.0015)*currentQty
                             trade_qty = trade_qty + abs(currentQty)
                             count = count + 1
                             holdTime = 0
@@ -236,7 +253,8 @@ class Strategy(object):
                             pnl = 0
                             trade_flag.append(np.nan)
                         else:
-                            pnl = (bidPrice - openPrice - openPrice * 0.0015)*currentQty
+                            pnl = (bidPrice - openPrice - openPrice * fee)*currentQty
+                            #pnl = (bidPrice - openPrice - openPrice * 0.0015)*currentQty
                             trade_qty = trade_qty + abs(currentQty)
                             count = count + 1
                             holdTime = 0
@@ -251,7 +269,8 @@ class Strategy(object):
                             pnl = 0
                             trade_flag.append(np.nan)
                         else:
-                            pnl = -(openPrice - askPrice - openPrice * 0.0015)*currentQty
+                            pnl = -(openPrice - askPrice - openPrice * fee)*currentQty
+                            #pnl = -(openPrice - askPrice - openPrice * 0.0015)*currentQty
                             trade_qty = trade_qty + abs(currentQty)
                             count = count + 1
                             holdTime = 0
