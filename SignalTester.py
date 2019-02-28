@@ -243,7 +243,7 @@ class SignalTester(object):
                 m_value = list(midp_2.iloc[:])
                 ax.plot(m_value, label=symbol + 'filter_midquote')
                 '''
-                if signal == 'obi_extreme':
+                if signal == 'obi_extreme_future':
                     #Jpanag
                     upper_value =list( subQuoteData.loc[:, 'upper_bound'])
                     loerer_value =list( subQuoteData.loc[:, 'lower_bound'])
@@ -567,24 +567,24 @@ class SignalTester(object):
             #ap_list = ['askPrice1', 'askPrice2', 'askPrice3']#, 'askPrice4', 'askPrice5']
             #bp_list = ['bidPrice1', 'bidPrice2', 'bidPrice3']#, 'bidPrice4', 'bidPrice5']
 
-            ap_list = ['askPrice3', 'askPrice4', 'askPrice5']#, 'askPrice4', 'askPrice5']
-            bp_list = ['bidPrice3', 'bidPrice4', 'bidPrice5']#, 'bidPrice4', 'bidPrice5']
+            ap_list = ['askPrice1', 'askPrice2', 'askPrice3', 'askPrice4', 'askPrice5']
+            bp_list = ['bidPrice1', 'bidPrice2', 'bidPrice3', 'bidPrice4', 'bidPrice5']
 
             #av_list = ['askVolume1', 'askVolume2', 'askVolume3']#, 'askVolume4', 'askVolume5']
             #bv_list = ['bidVolume1', 'bidVolume2', 'bidVolume3']#, 'bidVolume4', 'bidVolume5']
 
-            av_list = ['askVolume3', 'askVolume4', 'askVolume5']#, 'askVolume4', 'askVolume5']
-            bv_list = ['bidVolume3', 'bidVolume4', 'bidVolume5']#, 'bidVolume4', 'bidVolume5']
+            av_list = ['askVolume1', 'askVolume2', 'askVolume3','askVolume4', 'askVolume5']
+            bv_list = ['bidVolume1', 'bidVolume2', 'bidVolume3', 'bidVolume4', 'bidVolume5']
 
-            ap_list_ahead = ['askPrice1', 'askPrice2', 'askPrice3']  # , 'askPrice4', 'askPrice5']
-            bp_list_ahead = ['bidPrice1', 'bidPrice2', 'bidPrice3']  # , 'bidPrice4', 'bidPrice5']
+            ap_list_ahead = ['askPrice1', 'askPrice2', 'askPrice3' , 'askPrice4', 'askPrice5']
+            bp_list_ahead = ['bidPrice1', 'bidPrice2', 'bidPrice3' , 'bidPrice4', 'bidPrice5']
 
-            av_list_ahead = ['askVolume1', 'askVolume2', 'askVolume3']  # , 'askVolume4', 'askVolume5']
-            bv_list_ahead = ['bidVolume1', 'bidVolume2', 'bidVolume3']  # , 'bidVolume4', 'bidVolume5']
+            av_list_ahead = ['askVolume1', 'askVolume2', 'askVolume3' , 'askVolume4', 'askVolume5']
+            bv_list_ahead = ['bidVolume1', 'bidVolume2', 'bidVolume3' , 'bidVolume4', 'bidVolume5']
             for i in range(1, lth):
 
                 if (i == 1):
-                    Askp_kp_array = np.array(())
+                    Askp_array = np.array(())
                     Askv_array = np.array(())
                     bidp_array = np.array(())
                     bidv_array = np.array(())
@@ -640,10 +640,119 @@ class SignalTester(object):
 
 
             self.allQuoteData[symbol].loc[:, 'obi_diff'] = ex_ob_
-            self.allQuoteData[symbol].loc[:, 'obi_bid_diff'] = ex_ob_
-            self.allQuoteData[symbol].loc[:, 'obi_ask_diff'] = ex_ob_
-            positivePos = (self.allQuoteData[symbol]['obi_bid_diff'] >100000  )& (self.allQuoteData[symbol][ 'obi_'] >1.2)
-            negativePos = (self.allQuoteData[symbol]['obi_ask_diff'] >100000 )& (self.allQuoteData[symbol][ 'obi_'] <1/1.2)
+            self.allQuoteData[symbol].loc[:, 'obi_bid_diff'] = ex_ob_bid
+            self.allQuoteData[symbol].loc[:, 'obi_ask_diff'] = ex_ob_ask
+            positivePos = (self.allQuoteData[symbol]['obi_bid_diff'] >10 )& (self.allQuoteData[symbol][ 'obi_'] >1.1)
+            negativePos = (self.allQuoteData[symbol]['obi_ask_diff'] >10 )& (self.allQuoteData[symbol][ 'obi_'] <1/1.1)
+
+
+
+
+            #pd.concat(q, 0).to_csv(outputpath + './' + tradingDay + '.csv')
+            self.allQuoteData[symbol].loc[positivePos, signal + '_' + str(window) + '_min'] = 1
+            self.allQuoteData[symbol].loc[negativePos, signal +'_' + str(window) + '_min'] = -1
+            self.allQuoteData[symbol].loc[(~positivePos) & (~negativePos), signal +'_' + str(window) + '_min'] = 0
+            # self.allQuoteData[symbol].loc[:,''] =
+            # self.allQuoteData[symbol].loc[:, 'obi' + str(window) + '_min_sum'] = self.allQuoteData[symbol].loc[:,'obi'].rolling(window * 60).sum()
+            # todo: 把几层obi当作一层看待，适合高价股？
+
+            # print out the dataframe
+            q = self.allQuoteData[symbol]
+            q.to_csv(self.dataSavePath + './' + str(self.tradeDate.date())+ signal+' '+symbol + '.csv')
+            print('Calculate obi here for symbol = ', symbol, 'with lbwindow = ', window)
+        elif signal == 'ex_ob_1':
+            # todo: revise the obi signal here
+            ex_ob_ = list()
+            ex_ob_.append(0)
+            ex_ob_bid = list()
+            ex_ob_bid.append(0)
+            ex_ob_ask = list()
+            ex_ob_ask.append(0)
+            ex_ob_ahead = list()
+            ex_ob_ahead.append(0)
+            self.allQuoteData[symbol].loc[:, 'obi_'] = np.sqrt(3*(self.allQuoteData[symbol].loc[:, 'bidVolume1'] +self.allQuoteData[symbol].loc[:, 'bidVolume2']
+                                                       +self.allQuoteData[symbol].loc[:, 'bidVolume3']
+                                                       )/(3*self.allQuoteData[symbol].loc[:, 'askVolume1'] + self.allQuoteData[symbol].loc[:, 'askVolume2']
+                                                        +self.allQuoteData[symbol].loc[:, 'askVolume3']))
+
+            lth = len(self.allQuoteData[symbol].loc[:, 'bidVolume1'])
+
+            fac = []
+            #ap_list = ['askPrice1', 'askPrice2', 'askPrice3']#, 'askPrice4', 'askPrice5']
+            #bp_list = ['bidPrice1', 'bidPrice2', 'bidPrice3']#, 'bidPrice4', 'bidPrice5']
+
+            ap_list = ['askPrice1', 'askPrice2', 'askPrice3', 'askPrice4', 'askPrice5']
+            bp_list = ['bidPrice1', 'bidPrice2', 'bidPrice3', 'bidPrice4', 'bidPrice5']
+
+            #av_list = ['askVolume1', 'askVolume2', 'askVolume3']#, 'askVolume4', 'askVolume5']
+            #bv_list = ['bidVolume1', 'bidVolume2', 'bidVolume3']#, 'bidVolume4', 'bidVolume5']
+
+            av_list = ['askVolume1', 'askVolume2', 'askVolume3','askVolume4', 'askVolume5']
+            bv_list = ['bidVolume1', 'bidVolume2', 'bidVolume3', 'bidVolume4', 'bidVolume5']
+
+            ap_list_ahead = ['askPrice1', 'askPrice2', 'askPrice3' , 'askPrice4', 'askPrice5']
+            bp_list_ahead = ['bidPrice1', 'bidPrice2', 'bidPrice3' , 'bidPrice4', 'bidPrice5']
+
+            av_list_ahead = ['askVolume1', 'askVolume2', 'askVolume3' , 'askVolume4', 'askVolume5']
+            bv_list_ahead = ['bidVolume1', 'bidVolume2', 'bidVolume3' , 'bidVolume4', 'bidVolume5']
+            for i in range(1, lth):
+
+                if (i == 1):
+                    Askp_array = np.array(())
+                    Askv_array = np.array(())
+                    bidp_array = np.array(())
+                    bidv_array = np.array(())
+                    pre_midp = (self.allQuoteData[symbol].bidPrice1.values[i] +self.allQuoteData[symbol].askPrice1.values[i]) / 2
+                pre_ask = np.sum(Askv_array)
+                pre_bid = np.sum(bidv_array)
+
+                if (i > 1):
+
+                    bid_pos_ind = bidp_array <= self.allQuoteData[symbol].bidPrice1.values[i]
+                    ask_pos_ind = Askp_array >= self.allQuoteData[symbol].askPrice1.values[i]
+                    bidp_array = bidp_array[bid_pos_ind]
+                    Askp_array = Askp_array[ask_pos_ind]
+                    bidv_array = bidv_array[bid_pos_ind]
+                    Askv_array = Askv_array[ask_pos_ind]
+                for bp, ap, bv, av in zip(bp_list, ap_list, bv_list, av_list):
+                    if (self.allQuoteData[symbol][bp][i] <= self.allQuoteData[symbol].bidPrice1.values[i]):
+                        if (self.allQuoteData[symbol][bp][i] not in bidp_array):
+                            bidp_array = np.append(bidp_array, self.allQuoteData[symbol][bp][i])
+                            bidv_array = np.append(bidv_array, self.allQuoteData[symbol][bv][i])
+                        else:
+                            assert (len(np.where(bidp_array == self.allQuoteData[symbol][bp][i])[0]) == 1)
+                            bidv_array[np.where(bidp_array == self.allQuoteData[symbol][bp][i])[0][0]] = self.allQuoteData[symbol][bv][i]
+
+                    if (self.allQuoteData[symbol][ap][i] >= self.allQuoteData[symbol].askPrice1.values[i]):
+                        if (self.allQuoteData[symbol][ap][i] not in Askp_array):
+                            Askp_array = np.append(Askp_array, self.allQuoteData[symbol][ap][i])
+                            Askv_array = np.append(Askv_array, self.allQuoteData[symbol][av][i])
+                        else:
+                            assert (len(np.where(Askp_array == self.allQuoteData[symbol][ap][i])[0]) == 1)
+                            Askv_array[np.where(Askp_array == self.allQuoteData[symbol][ap][i])[0][0]] = self.allQuoteData[symbol][av][i]
+
+                Now_ask = np.sum(Askv_array)
+
+                Now_bid = np.sum(bidv_array)
+
+                midPriceChange = self.allQuoteData[symbol]['midp'].diff()
+
+                self.allQuoteData[symbol].loc[:, 'priceChange'] = 1
+
+
+                temp_back_ = (Now_bid - pre_bid) * - (Now_ask - pre_ask)
+
+
+
+                ex_ob_ask.append((Now_ask - pre_ask))
+                ex_ob_bid.append((Now_bid - pre_bid))
+
+
+            self.allQuoteData[symbol].loc[:, 'obi_diff'] = ex_ob_
+            self.allQuoteData[symbol].loc[:, 'obi_bid_diff'] = ex_ob_bid
+            self.allQuoteData[symbol].loc[:, 'obi_ask_diff'] = ex_ob_ask
+            positivePos = (self.allQuoteData[symbol]['obi_bid_diff'] >150 )& (self.allQuoteData[symbol][ 'obi_'] >1.2)
+            negativePos = (self.allQuoteData[symbol]['obi_ask_diff'] >200 )& (self.allQuoteData[symbol][ 'obi_'] <1/1.2)
 
 
 
@@ -1387,6 +1496,9 @@ class SignalTester(object):
             self.allQuoteData[symbol].loc[:, 'lower_bound'] = self.allQuoteData[symbol].loc[:,'not'] - 3 *self.allQuoteData[symbol].loc[:,'std_']
             #negativePos = (self.allQuoteData[symbol].loc[:,'ewm']> (self.allQuoteData[symbol].loc[:,'not'] +3*self.allQuoteData[symbol].loc[:,'std_']))&(self.allQuoteData[symbol].loc[:,'ewm'].shift(-1) <(self.allQuoteData[symbol].loc[:,'not'].shift(-1) + 3*self.allQuoteData[symbol].loc[:,'std_'].shift(-1)))
             #negativePos = (self.allQuoteData[symbol].loc[:,'ewm'].shift(1) > (self.allQuoteData[symbol].loc[:,'not'].shift(1)  +3*self.allQuoteData[symbol].loc[:,'std_'].shift(1) ))&(self.allQuoteData[symbol].loc[:,'ewm'] <(self.allQuoteData[symbol].loc[:,'not'] + 3*self.allQuoteData[symbol].loc[:,'std_']))
+
+
+
             negativePos = (self.allQuoteData[symbol].loc[:,'ewm'].shift(1) < (self.allQuoteData[symbol].loc[:,'not'].shift(1)  +3*self.allQuoteData[symbol].loc[:,'std_'].shift(1) ))&(self.allQuoteData[symbol].loc[:,'ewm'] >(self.allQuoteData[symbol].loc[:,'not'] + 3*self.allQuoteData[symbol].loc[:,'std_']))
             #positivePos = (self.allQuoteData[symbol].loc[:,'ewm']< (self.allQuoteData[symbol].loc[:,'not'] -3*self.allQuoteData[symbol].loc[:,'std_']))&(self.allQuoteData[symbol].loc[:,'ewm'].shift(-1)>(self.allQuoteData[symbol].loc[:,'not'].shift(-1) - 3*self.allQuoteData[symbol].loc[:,'std_'].shift(-1)))
             #positivePos = (self.allQuoteData[symbol].loc[:,'ewm'].shift(1) < (self.allQuoteData[symbol].loc[:,'not'].shift(1) -3*self.allQuoteData[symbol].loc[:,'std_'].shift(1) ))&(self.allQuoteData[symbol].loc[:,'ewm']>(self.allQuoteData[symbol].loc[:,'not'] - 3*self.allQuoteData[symbol].loc[:,'std_']))
@@ -1412,6 +1524,182 @@ class SignalTester(object):
             print('Calculate obi here for symbol = ', symbol, 'with lbwindow = ', window,'date'+str(self.tradeDate.date()))
 
 
+
+
+
+
+
+
+
+        elif signal == 'obi_extreme_future':
+            midp = self.allQuoteData[symbol].loc[:, 'midp']
+            quotedata = self.allQuoteData[symbol]
+            bid_Volume10 = (quotedata.loc[:, 'bidVolume1'] + quotedata.loc[:, 'bidVolume2'] + quotedata.loc[:,
+                                                                                              'bidVolume3']) * 1 / 1.5
+            ask_Volume10 = (quotedata.loc[:, 'askVolume1'] + quotedata.loc[:, 'askVolume2'] + quotedata.loc[:,
+                                                                                              'askVolume3']) * 1 / 1.5
+            bid_Volume10_2 = (quotedata.loc[:, 'bidVolume1'] + quotedata.loc[:, 'bidVolume2'])
+            ask_Volume10_2 = (quotedata.loc[:, 'askVolume1'] + quotedata.loc[:, 'askVolume2'])
+            bid_price = (bid_Volume10 < quotedata.loc[:, 'bidVolume1']) + 2 * (
+                        (bid_Volume10 > quotedata.loc[:, 'bidVolume1']) & (bid_Volume10 < bid_Volume10_2))
+            ask_price = (ask_Volume10 < quotedata.loc[:, 'askVolume1']) + 2 * (
+                        (ask_Volume10 > quotedata.loc[:, 'askVolume1']) & (ask_Volume10 < ask_Volume10_2))
+            quotedata.loc[:, 'bid_per10'] = quotedata.loc[:, 'bidPrice1']
+            quotedata.loc[:, 'ask_per10'] = quotedata.loc[:, 'askPrice1']
+            quotedata.loc[:, 'bid_vol10'] = quotedata.loc[:, 'bidVolume1']
+            quotedata.loc[:, 'ask_vol10'] = quotedata.loc[:, 'askVolume1']
+
+            quotedata.loc[bid_price == 2, 'bid_per10'] = quotedata.loc[bid_price == 2, 'bidPrice2']
+            quotedata.loc[bid_price == 0, 'bid_per10'] = quotedata.loc[bid_price == 0, 'bidPrice3']
+            quotedata.loc[ask_price == 2, 'ask_per10'] = quotedata.loc[ask_price == 2, 'askPrice2']
+            quotedata.loc[ask_price == 0, 'ask_per10'] = quotedata.loc[ask_price == 0, 'askPrice3']
+            quotedata.loc[quotedata.loc[:, 'ask_per10'] == 0, 'ask_per10'] = np.nan
+            quotedata.loc[quotedata.loc[:, 'bid_per10'] == 0, 'bid_per10'] = np.nan
+            quotedata.loc[bid_price == 2, 'bid_vol10'] = quotedata.loc[bid_price == 2, 'bidVolume2']
+            quotedata.loc[bid_price == 0, 'bid_vol10'] = quotedata.loc[bid_price == 0, 'bidVolume3']
+            quotedata.loc[ask_price == 2, 'ask_vol10'] = quotedata.loc[ask_price == 2, 'askVolume2']
+            quotedata.loc[ask_price == 0, 'ask_vol10'] = quotedata.loc[ask_price == 0, 'askVolume3']
+
+            midp_2 = (quotedata.loc[:, 'ask_per10'] * quotedata.loc[:, 'bid_vol10'] + quotedata.loc[:,
+                                                                                      'bid_per10'] * quotedata.loc[:,
+                                                                                                     'ask_vol10']) / (
+                                 quotedata.loc[:, 'bid_vol10'] + quotedata.loc[:, 'ask_vol10'])
+            self.allQuoteData[symbol].loc[:, 'midp_2'] = midp_2
+            # midp = (quotedata.loc[:, 'askPrice1'] * quotedata.loc[:, 'bidVolume1'] + quotedata.loc[:, 'bidPrice1'] * quotedata.loc[:,'askVolume1']) / (quotedata.loc[:, 'bidVolume1'] + quotedata.loc[:, 'askVolume1'])
+            T = 120
+            mean_midp = midp_2.rolling(T ).mean()
+            Minute = 3
+
+            ewm_midp = mean_midp.ewm(Minute * T ).mean()
+
+            fig, ax = plt.subplots(1, figsize=(20, 12), sharex=True)
+
+            mean_midp_ = midp.rolling(T ).mean()
+            ewm_midp_ = mean_midp_.ewm(Minute * T ).mean()
+
+            not_point = list()
+            kp1_point = list()
+            kp2_point = list()
+            kp_1 = 0
+            kp_2 = 0
+            id_1 = 0
+            id_2 = 0
+            count = 0
+            #std_ = mean_midp.ewm(Minute * 20).std()
+            std_ = mean_midp.ewm(Minute * T).std()
+            # std = mean_midp.ewm(M2* T)
+            STATE_test = list()
+            kp_list = list()
+            for row in zip(ewm_midp, std_):
+                count = count + 1
+                i = row[0]
+                j = row[1]
+                if i is not np.nan:
+
+                    if (kp_1 != 0) & (kp_2 != 0) & (kp_1 == kp_1) & (kp_2 == kp_2):
+
+                        kp_diff = kp_1 - kp_2
+                        if (kp_diff * (i - kp_2) < 0):
+
+                            if ((abs(i - kp_2)) > 4 * j):
+                                # print(id_2-id_1)
+                                not_point.append(i)
+                                kp_1 = kp_2
+                                kp_2 = i
+                                id_1 = id_2
+                                id_2 = count
+                                STATE_test.append(3)
+                            else:
+                                not_point.append(kp_2)
+                                STATE_test.append(2)
+                        else:
+                            kp_2 = i
+                            id_2 = count
+                            not_point.append(kp_1)
+                            STATE_test.append(1)
+
+                    else:
+                        not_point.append(np.nan)
+                        kp_1 = i
+                        kp_2 = i
+                        id_1 = count
+                        id_2 = count
+                        STATE_test.append(0)
+
+                    kp1_point.append(kp_1)
+                    kp2_point.append(kp_2)
+
+                else:
+                    not_point.append(np.nan)
+                    kp1_point.append(np.nan)
+                    kp2_point.append(np.nan)
+                    STATE_test.append(np.nan)
+
+            self.allQuoteData[symbol].loc[:, 'ewm'] = ewm_midp
+            self.allQuoteData[symbol].loc[:, 'filter_ewm'] = ewm_midp
+            self.allQuoteData[symbol].loc[:, 'not'] = not_point
+            # self.allQuoteData[symbol].loc[:,'kp_1'] = kp1_point
+            # self.allQuoteData[symbol].loc[:,'kp_2'] = kp2_point
+
+            self.allQuoteData[symbol].loc[:, 'std_'] = std_
+            # self.allQuoteData[symbol].loc[:,'std_'] = std_
+            # self.allQuoteData[symbol].loc[:,'state'] = STATE_test
+
+            self.allQuoteData[symbol].loc[:, 'upper_bound'] = self.allQuoteData[symbol].loc[:, 'not'] + 3 * \
+                                                              self.allQuoteData[symbol].loc[:, 'std_']
+            self.allQuoteData[symbol].loc[:, 'lower_bound'] = self.allQuoteData[symbol].loc[:, 'not'] - 3 * \
+                                                              self.allQuoteData[symbol].loc[:, 'std_']
+            # negativePos = (self.allQuoteData[symbol].loc[:,'ewm']> (self.allQuoteData[symbol].loc[:,'not'] +3*self.allQuoteData[symbol].loc[:,'std_']))&(self.allQuoteData[symbol].loc[:,'ewm'].shift(-1) <(self.allQuoteData[symbol].loc[:,'not'].shift(-1) + 3*self.allQuoteData[symbol].loc[:,'std_'].shift(-1)))
+            # negativePos = (self.allQuoteData[symbol].loc[:,'ewm'].shift(1) > (self.allQuoteData[symbol].loc[:,'not'].shift(1)  +3*self.allQuoteData[symbol].loc[:,'std_'].shift(1) ))&(self.allQuoteData[symbol].loc[:,'ewm'] <(self.allQuoteData[symbol].loc[:,'not'] + 3*self.allQuoteData[symbol].loc[:,'std_']))
+            self.allQuoteData[symbol].loc[:,'int_diff'] = self.allQuoteData[symbol].loc[:,'open_interest'].diff(T)
+
+
+            positivePos1 =(self.allQuoteData[symbol].loc[:,'int_diff'] <T) &(self.allQuoteData[symbol].loc[:, 'ewm'].shift(1) < (
+                        self.allQuoteData[symbol].loc[:, 'not'].shift(1) + 3 * self.allQuoteData[symbol].loc[:,
+                                                                               'std_'].shift(1))) & (
+                                      self.allQuoteData[symbol].loc[:, 'ewm'] > (
+                                          self.allQuoteData[symbol].loc[:, 'not'] + 3 * self.allQuoteData[symbol].loc[:,
+                                                                                        'std_']))
+            positivePos2 =(self.allQuoteData[symbol].loc[:,'int_diff'] >T) & (self.allQuoteData[symbol].loc[:, 'ewm'].shift(1) > (
+                        self.allQuoteData[symbol].loc[:, 'not'].shift(1) - 3 * self.allQuoteData[symbol].loc[:,
+                                                                               'std_'].shift(1))) & (
+                                      self.allQuoteData[symbol].loc[:, 'ewm'] < (
+                                          self.allQuoteData[symbol].loc[:, 'not'] - 3 * self.allQuoteData[symbol].loc[:,
+                                                                                        'std_']))
+            # positivePos = (self.allQuoteData[symbol].loc[:,'ewm']< (self.allQuoteData[symbol].loc[:,'not'] -3*self.allQuoteData[symbol].loc[:,'std_']))&(self.allQuoteData[symbol].loc[:,'ewm'].shift(-1)>(self.allQuoteData[symbol].loc[:,'not'].shift(-1) - 3*self.allQuoteData[symbol].loc[:,'std_'].shift(-1)))
+            # positivePos = (self.allQuoteData[symbol].loc[:,'ewm'].shift(1) < (self.allQuoteData[symbol].loc[:,'not'].shift(1) -3*self.allQuoteData[symbol].loc[:,'std_'].shift(1) ))&(self.allQuoteData[symbol].loc[:,'ewm']>(self.allQuoteData[symbol].loc[:,'not'] - 3*self.allQuoteData[symbol].loc[:,'std_']))
+            negativePos1 = (self.allQuoteData[symbol].loc[:,'int_diff'] <T) &(self.allQuoteData[symbol].loc[:, 'ewm'].shift(1) > (
+                        self.allQuoteData[symbol].loc[:, 'not'].shift(1) - 3 * self.allQuoteData[symbol].loc[:,
+                                                                               'std_'].shift(1))) & (
+                                      self.allQuoteData[symbol].loc[:, 'ewm'] < (
+                                          self.allQuoteData[symbol].loc[:, 'not'] - 3 * self.allQuoteData[symbol].loc[:,
+                                                                                        'std_']))
+            negativePos2 = (self.allQuoteData[symbol].loc[:,'int_diff'] >T) &(self.allQuoteData[symbol].loc[:, 'ewm'].shift(1) < (
+                        self.allQuoteData[symbol].loc[:, 'not'].shift(1) + 3 * self.allQuoteData[symbol].loc[:,
+                                                                               'std_'].shift(1))) & (
+                                      self.allQuoteData[symbol].loc[:, 'ewm'] > (
+                                          self.allQuoteData[symbol].loc[:, 'not'] + 3 * self.allQuoteData[symbol].loc[:,
+                                                                                        'std_']))
+            negativePos = positivePos1 + positivePos2
+            positivePos = negativePos1 + negativePos2
+            '''
+            y_value = list(midp.iloc[:])
+            yvalue  =list(ewm_midp)
+            yvalue_3 = list(ewm_midp_)
+
+            ax.plot(yvalue,label  = '1')
+            ax.plot(y_value,label = '2')
+            ax.plot(not_point, marker='^', c='red')
+
+            #plt.savefig(self.dataSavePath + '/'+ str(self.tradeDate.date())  +symbol +signal+ '.jpg')
+            '''
+            self.allQuoteData[symbol].loc[positivePos, signal + '_' + str(window) + '_min'] = 1
+            self.allQuoteData[symbol].loc[negativePos, signal + '_' + str(window) + '_min'] = -1
+            # self.allQuoteData[symbol].to_csv(self.dataSavePath + './' + str(self.tradeDate.date()) + signal + ' ' + symbol + 'quote_order.csv')
+            self.allQuoteData[symbol].loc[(~positivePos) & (~negativePos), signal + '_' + str(window) + '_min'] = 0
+
+            print('Calculate obi here for symbol = ', symbol, 'with lbwindow = ', window,
+                  'date' + str(self.tradeDate.date()))
 
 
 
@@ -1963,7 +2251,7 @@ class SignalTester(object):
             timePos = pd.Index(data.index).get_loc(itime)
             #if isinstance(timePos,np.int64) is False:
 
-            if isinstance(timePos,np.int64) is False:
+            if isinstance(timePos,np.int) is False:
                 timePos = timePos.stop
 
             if timePos > (data.shape[0] - laWindow):  # should pass the laWindow to here

@@ -20,10 +20,12 @@ import matplotlib.pyplot as plt
 
 class Stats(object):
 
-    def __init__(self, symbol, quoteData, outputpath = './stats_test/'):
+    def __init__(self, symbol, quoteData,futureData =None, outputpath = 'E://stats_test/'):
         self.symbol    = symbol
         self.quoteData = quoteData
         self.outputpath = outputpath
+        self.futureData = futureData
+        print(os.path.exists(outputpath))
         if os.path.exists(outputpath) is False:
             os.makedirs(outputpath)
 
@@ -261,6 +263,21 @@ class Stats(object):
 
         print(1)
         return 0
+
+    def vol2diffop(self, symbol):
+        stats_ = pd.DataFrame()
+        open_interest = self.futureData[symbol].loc[:,'open_interest']
+        int_diff = open_interest.diff(240)
+        midp = self.futureData[symbol].loc[:,'open_interest']
+        midp_std = midp.rolling(240).std()
+        midp_std_diff = midp_std .diff(240)
+        stats_.loc[:,'midp_std'] = midp_std_diff
+        stats_.loc[:,'int_diff'] = int_diff
+
+        print(stats_)
+        stats_.to_csv(self.outputpath  + 'stats_vol.csv')
+        print(self.outputpath  + 'stats_vol.csv')
+
     '''
     Test：统计的内容
     尝试以下两个现象
@@ -279,14 +296,16 @@ if __name__ == '__main__':
     # data = Data('E:/personalfiles/to_zhixiong/to_zhixiong/level2_data_with_factor_added','600030.SH','20170516')
     dataPath = '//192.168.0.145/data/stock/wind'
     ## /sh201707d/sh_20170703
-    tradeDate = '20190218'
+    tradeDate = '20190226'
+
     symbols = ['IC.CF']
     # exchange = symbol.split('.')[1].lower()
     #print(dataPath)
     data = Data.Data(dataPath, '', tradeDate,futureSymbols = symbols ,dataReadType= 'gzip', RAWDATA = 'True')
-    stats   = Stats(symbols,data.quoteData,outputpath = './IF_TICK/')
+    stats   = Stats(symbols,data.quoteData,data.futureData)
 
-    print(data.futureData[symbols[0]].loc[:,'midp'])
+    #print(data.futureData[symbols[0]].loc[:,'midp'])
+    stats.vol2diffop(symbols[0])
     # signalTester.CompareSectorAndStock(symbols[0], orderType='netMainOrderCashFlow')
     #stats.distribution(symbols[0])
 

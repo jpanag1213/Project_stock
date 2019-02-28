@@ -55,6 +55,7 @@ def run(configfile):
                 quoteData = data.futureData[symbol]
             else:
                 quoteData = data.quoteData[symbol]
+                #print(quoteData)
 
             ##todo future strategy
             if Asset == 'Future':
@@ -71,8 +72,8 @@ def run(configfile):
         if len(stsDf) > 0:
             ##保证至少有1
             print(tradingDay)
-            pd.concat(stsDf,0).to_csv(outputpath+'./' + tradingDay + '+CS1_test.csv')
-            pd.concat(strategyResult,0).to_csv('./strategy/' + tradingDay + '+CS1_test.csv')
+            pd.concat(stsDf,0).to_csv(outputpath+'./' + tradingDay + '+QWE.csv')
+            pd.concat(strategyResult,0).to_csv('./strategy/' + tradingDay + '+QWE.csv')
     return 0
 
 def CalculatreHisData(configfile):

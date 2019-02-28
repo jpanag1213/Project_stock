@@ -33,7 +33,7 @@ class Strategy(object):
         self.sts = pd.DataFrame(columns = ['wr','pnl','times','todayup','trade_qty','total_qty'],index=[symbol])
         self.outputpath = outputpath
         if asset == 'Future':
-            self.fee = 4.8/10000
+            self.fee = 0.25/10000
         else:
             self.fee = 0.0015
         if os.path.exists(outputpath) is False:
@@ -176,7 +176,7 @@ class Strategy(object):
             times = row[4]
             stats = row[5]
             temp_tick = temp_tick + 1
-            if (stats == 79):
+            if (stats == 0):
                 if longShort == 1:
                     temp_ = str(times).split(" ")
 
