@@ -1,0 +1,32 @@
+[DEFAULT]
+symbolfile = ./ref_data/lp_test.csv
+tradingDayFile = ./ref_data/TradingDay.csv
+dataPathCsv = E:/data/stock/guosen_wind/test
+dataPathGzip = //192.168.0.145/data/stock/wind
+dataReadType = gzip
+dailyDataFile = ./ref_data/all_daily_data_pindex.csv
+mainFutureFile = ./ref_data/index_future_contracts.csv
+outputpath = ./test
+asset  = Future
+
+[Signal]
+signal = obi_extreme_future
+lbwindow = 20
+lawindow = 2000
+startDate = 2018-12-02
+endDate = 2019-02-27
+closeType = fixwindow
+stopWinRatio = 0.01
+paraset  = 20-4-1
+
+[Strategy]
+stocktype = low
+signal = obi_extreme
+lbwindow = 10
+lawindow = 100
+startDate = 2019-02-18
+endDate = 2018-11-27
+closeType = fixwindow
+stopWinRatio = 0.003
+trade_times = 5
+position = 2000
