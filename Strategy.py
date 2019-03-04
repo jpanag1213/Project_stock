@@ -16,10 +16,11 @@ import configparser
 import time
 from Utils import *
 import matplotlib.pyplot as plt
+import datetime
 
 class Strategy(object):
 
-    def __init__(self, symbol, qty, quoteData, signal, lbwindow, lawindow, times, closeType,outputpath = './strategy', stockType = 'low',asset = ''):
+    def __init__(self, symbol, qty, quoteData, signal, tradingDay,lbwindow, lawindow, times, closeType,fee =15/10000,outputpath = './strategy', stockType = 'low',asset = ''):
         self.symbol = symbol
         self.qty = qty
         self.quoteData = quoteData
@@ -30,12 +31,12 @@ class Strategy(object):
         self.closeType = closeType
         self.stockType = stockType
         self.asset   = asset
+        self.tradeDate = tradingDay
         self.sts = pd.DataFrame(columns = ['wr','pnl','times','todayup','trade_qty','total_qty'],index=[symbol])
         self.outputpath = outputpath
-        if asset == 'Future':
-            self.fee = 0.25/10000
-        else:
-            self.fee = 0.0015
+        self.quoteData = self.opentime()
+        self.fee = fee
+
         if os.path.exists(outputpath) is False:
             os.makedirs(outputpath)
 
@@ -121,6 +122,15 @@ class Strategy(object):
         plt.close('all')
         return 0
 
+    def opentime(self):
+        quoteData = self.quoteData
+        quoteData.loc[:,'openstatus'] = 0
+        quoteData.loc[datetime.datetime.strptime(str(self.tradeDate + ' 09:30:00'), '%Y%m%d %H:%M:%S'):datetime.datetime.strptime(str(self.tradeDate + ' 14:50:00'), '%Y%m%d %H:%M:%S'),'openstatus'] = 1
+        quoteData.loc[
+        datetime.datetime.strptime(str(self.tradeDate + ' 14:50:00'), '%Y%m%d %H:%M:%S'):datetime.datetime.strptime(str(self.tradeDate + ' 14:57:00'), '%Y%m%d %H:%M:%S'), 'openstatus'] =2
+
+        return quoteData
+
     def SummaryStrategy(self):
         # if self.sts.empty:
         #     self.run()
@@ -168,20 +178,42 @@ class Strategy(object):
         temp_tick = 0
         record_ = list()
         #self.quoteData.to_csv('./'+self.symbol+'_test_.csv')
-        for row in zip(self.quoteData.loc[:, self.signal + '_' + str(self.lbwindow) + '_min'], self.quoteData['bidPrice1'], self.quoteData['askPrice1'], self.quoteData['midp'],self.quoteData.index,self.quoteData.status):
+
+        for row in zip(self.quoteData.loc[:, self.signal + '_' + str(self.lbwindow) + '_min'], self.quoteData['bidPrice1'], self.quoteData['askPrice1'], self.quoteData['midp'],self.quoteData.openstatus):
             longShort = row[0]  # 1 is long, -1 is short
             bidPrice = row[1]
             askPrice = row[2]
             lastPrice = row[3]
-            times = row[4]
-            stats = row[5]
-            temp_tick = temp_tick + 1
-            if (stats == 0):
-                if longShort == 1:
-                    temp_ = str(times).split(" ")
-
-                    if time.strftime(temp_[1])< time.strftime('14:57:00'):
-
+            openstatus = row[4]
+            if (openstatus != 0):
+                if (openstatus == 2) :  ##收盘平仓
+                    if currentQty > 0:
+                        pnl = (bidPrice - openPrice - openPrice * fee) * currentQty
+                        # pnl = (bidPrice - openPrice - openPrice * 0.0015)*currentQty
+                        trade_qty = trade_qty + abs(currentQty)
+                        count = count + 1
+                        holdTime = 0
+                        currentQty = 0
+                        totalTimes = totalTimes + 1
+                        trade_flag.append(3)
+                        if pnl > 0:
+                            winTimes = winTimes + 1
+                    elif currentQty < 0:
+                        pnl = -(openPrice - askPrice - openPrice * fee) * currentQty
+                        # pnl = -(openPrice - askPrice - openPrice * 0.0015)*currentQty
+                        trade_qty = trade_qty + abs(currentQty)
+                        count = count + 1
+                        holdTime = 0
+                        currentQty = 0
+                        totalTimes = totalTimes + 1
+                        trade_flag.append(-3)
+                        if pnl > 0:
+                            winTimes = winTimes + 1
+                    else:
+                        trade_flag.append(np.nan)
+                        pnl = 0
+                elif(openstatus == 1):
+                    if longShort == 1:
                         if currentQty > 0:
                             holdTime = 0  # 当有持续信号时，暂时不考虑重复开仓，防止记录麻烦。之后需要改进。因此这里需要重新记录持仓时间
                             pnl = 0
@@ -205,15 +237,13 @@ class Strategy(object):
                                 trade_flag.append(1)
                             else:
                                 trade_flag.append(np.nan)
-                                ###。。。。
                                 pnl = 0
-                    else:
-                        trade_flag.append(np.nan)
-                        ###。。。。
-                        pnl = 0
-                elif longShort == -1:
-                    temp_ = str(times).split(" ")
-                    if time.strftime(temp_[1])< time.strftime('14:57:00'):
+
+
+
+                    elif longShort == -1:
+
+
                         if currentQty < 0:
                             holdTime = 0  # 当有持续信号时，暂时不考虑重复开仓，防止记录麻烦。之后需要改进。因此这里需要重新记录持仓时间
                             pnl = 0
@@ -239,65 +269,63 @@ class Strategy(object):
                                 trade_flag.append(np.nan)
                                 ##。。。。
                                 pnl = 0
+
+
                     else:
-                        trade_flag.append(np.nan)
-                        ##。。。。
-                        pnl = 0
-                else:
-                    if currentQty == 0:
-                        pnl = 0
-                        trade_flag.append(np.nan)
-                    elif currentQty > 0:
-                        if holdTime < self.lawindow:
-                            holdTime = holdTime + 1
+                        if currentQty == 0:
                             pnl = 0
                             trade_flag.append(np.nan)
-                        else:
-                            pnl = (bidPrice - openPrice - openPrice * fee)*currentQty
-                            #pnl = (bidPrice - openPrice - openPrice * 0.0015)*currentQty
-                            trade_qty = trade_qty + abs(currentQty)
-                            count = count + 1
-                            holdTime = 0
-                            currentQty = 0
-                            totalTimes = totalTimes + 1
-                            trade_flag.append(3)
-                            if pnl > 0:
-                                winTimes = winTimes + 1
-                    elif currentQty < 0:
-                        if holdTime < self.lawindow:
-                            holdTime = holdTime + 1
-                            pnl = 0
-                            trade_flag.append(np.nan)
-                        else:
-                            pnl = -(openPrice - askPrice - openPrice * fee)*currentQty
-                            #pnl = -(openPrice - askPrice - openPrice * 0.0015)*currentQty
-                            trade_qty = trade_qty + abs(currentQty)
-                            count = count + 1
-                            holdTime = 0
-                            currentQty = 0
-                            totalTimes = totalTimes + 1
-                            if pnl > 0:
-                                winTimes = winTimes + 1
-                            trade_flag.append(-3)
+                        elif currentQty > 0:
+                            if holdTime < self.lawindow:
+                                holdTime = holdTime + 1
+                                pnl = 0
+                                trade_flag.append(np.nan)
+                            else:
+                                pnl = (bidPrice - openPrice - openPrice * fee)*currentQty
+                                #pnl = (bidPrice - openPrice - openPrice * 0.0015)*currentQty
+                                trade_qty = trade_qty + abs(currentQty)
+                                count = count + 1
+                                holdTime = 0
+                                currentQty = 0
+                                totalTimes = totalTimes + 1
+                                trade_flag.append(3)
+                                if pnl > 0:
+                                    winTimes = winTimes + 1
+                        elif currentQty < 0:
+                            if holdTime < self.lawindow:
+                                holdTime = holdTime + 1
+                                pnl = 0
+                                trade_flag.append(np.nan)
+                            else:
+                                pnl = -(openPrice - askPrice - openPrice * fee)*currentQty
+                                #pnl = -(openPrice - askPrice - openPrice * 0.0015)*currentQty
+                                trade_qty = trade_qty + abs(currentQty)
+                                count = count + 1
+                                holdTime = 0
+                                currentQty = 0
+                                totalTimes = totalTimes + 1
+                                if pnl > 0:
+                                    winTimes = winTimes + 1
+                                trade_flag.append(-3)
             else:
                 pnl = 0
                 trade_flag.append(np.nan)
 
-            record_.append(times)
+
             currentQtyList.append(self.qty + currentQty)
             cumpnlList.append(cumpnl + pnl + currentQty * (lastPrice - openPrice))
             if pnl != 0:
                 cumpnl = cumpnl + pnl
 
 
-        self.quoteData.loc[:, 'cumpnl'] = cumpnlList
+        self.quoteData.loc[:, 'cumpnl'] = cumpnlList[-1]
         self.quoteData.loc[:, 'currentQty'] = currentQtyList
         self.quoteData.loc[:, 'trade_flag'] = trade_flag
         if totalTimes != 0:
             wr = winTimes/totalTimes
         else:
             wr = 0
-        pnlpct = cumpnl/(lastPrice*self.qty)
+        pnlpct = cumpnlList[-1]/(lastPrice*self.qty)
         todayUpDowns = lastPrice/self.quoteData['midp'].iloc[0] - 1
         self.sts.loc[self.symbol,'wr'] = wr
         self.sts.loc[self.symbol,'pnl'] = pnlpct
@@ -305,8 +333,7 @@ class Strategy(object):
         self.sts.loc[self.symbol,'trade_qty'] = trade_qty
         self.sts.loc[self.symbol,'times'] = totalTimes
         self.sts.loc[self.symbol,'total_qty'] = self.qty
-        self.sts.loc[self.symbol, 'actualpnl'] = cumpnl
-
+        self.sts.loc[self.symbol, 'actualpnl'] = cumpnlList[-1]
         if self.symbol == '601669.SH':
         #    print(self.qty)
         #    print(lastPrice)

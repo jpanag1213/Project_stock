@@ -16,6 +16,7 @@ import os
 def GetLastNdates(n=5, tradeDate = '',tradingDays = ''):
     if tradeDate == '':
         tradeDate = str(datetime.datetime.today().date())
+
     tradingDays = pd.Index(tradingDays.loc[:, 'date'])
     tradeDayPosition = tradingDays.get_loc(str(tradeDate))
     if tradeDayPosition is None:

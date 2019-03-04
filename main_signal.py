@@ -22,7 +22,7 @@ def run(configfile):
     # dataPath = 'E:/data/stock/wind'
     # symbols = ['000001.SZ']
     # exchange = symbol.split('.')[1].lower()
-    symbols, dataPath, dataReadType, tradingDays, outputpath, signal, lbwindow, lawindow,paraset,Asset= ConfigReader(configfile)
+    symbols, dataPath, dataReadType, tradingDays, outputpath, signal, lbwindow, lawindow,paraset,Asset,Fee,Name= ConfigReader(configfile)
     print(tradingDays)
     stats_ = list()
     for tradingDay in tradingDays:
@@ -38,11 +38,11 @@ def run(configfile):
         if Asset == 'Future':
             data = Data.Data(dataPath, '', tradingDay, futureSymbols=tradingSymbols, dataReadType=dataReadType, RAWDATA='True')
 
-            signalTester = SignalTester.SignalTester(data, dailyData=pd.DataFrame, tradeDate=tradingDay, symbol=tradingSymbols, dataSavePath=outputpath,type = 'Future')
+            signalTester = SignalTester.SignalTester(data, dailyData=pd.DataFrame, tradeDate=tradingDay, symbol=tradingSymbols,fee = Fee, dataSavePath=outputpath,type = 'Future')
         else:
             data = Data.Data(dataPath, tradingSymbols, tradingDay, dataReadType=dataReadType, RAWDATA='True')
             # todo signalTester
-            signalTester = SignalTester.SignalTester(data, dailyData=pd.DataFrame, tradeDate=tradingDay,symbol=tradingSymbols, dataSavePath=outputpath)
+            signalTester = SignalTester.SignalTester(data, dailyData=pd.DataFrame, tradeDate=tradingDay,symbol=tradingSymbols, fee = Fee,dataSavePath=outputpath)
         # signalTester.CompareSectorAndStock(symbols[0], orderType='netMainOrderCashFlow')
         stsDf = list()
         strategyResult = list()
@@ -59,21 +59,19 @@ def run(configfile):
 
             ##todo future strategy
             if Asset == 'Future':
-                strategy = Strategy.Strategy(symbol, round(1000000/quoteData['midp'].iloc[-1],-2), quoteData, signal, lbwindow, lawindow, 8, 'lawindow',outputpath = './strategy/' + tradingDay, stockType = 'low',asset = 'Future')
+                strategy = Strategy.Strategy(symbol, round(1000000/quoteData['midp'].iloc[-1],-2), quoteData, signal, tradingDay,lbwindow, lawindow, 8, 'lawindow',fee = Fee,outputpath = './strategy/' + tradingDay, stockType = 'low',asset = 'Future')
             else:
-                strategy = Strategy.Strategy(symbol, round(1000000/quoteData['midp'].iloc[-1],-2), quoteData, signal, lbwindow, lawindow, 8, 'lawindow',outputpath = './strategy/' + tradingDay, stockType = 'low')
+                strategy = Strategy.Strategy(symbol, round(1000000/quoteData['midp'].iloc[-1],-2), quoteData, signal,tradingDay,lbwindow, lawindow, 8, 'lawindow',fee = Fee,outputpath = './strategy/' + tradingDay, stockType = 'low')
             strategy.SummaryStrategy()
             strategy.Plot()
             strategyResult.append(strategy.sts)
-            if signal == "stats_demo":
-                chance_ = sum(quoteData.loc[:,"chance"])  / (len((quoteData.loc[:,"chance"])) - 100)
-                stats_.append([tradingDay,symbol,chance_,quoteData.midp_.values[-1]])
+
         #print(len(stsDf))
         if len(stsDf) > 0:
             ##保证至少有1
             print(tradingDay)
-            pd.concat(stsDf,0).to_csv(outputpath+'./' + tradingDay + '+QWE.csv')
-            pd.concat(strategyResult,0).to_csv('./strategy/' + tradingDay + '+QWE.csv')
+            pd.concat(stsDf,0).to_csv(outputpath+'./' + tradingDay +Name+ '.csv')
+            pd.concat(strategyResult,0).to_csv('./strategy/' + tradingDay +Name+ '.csv')
     return 0
 
 def CalculatreHisData(configfile):
@@ -135,6 +133,7 @@ def SummaryResult(configfile):
         stsDf.loc[:,'date'] = tradingDay
         stsDfList.append(stsDf)
 
+
     stsDf = pd.concat(stsDfList,0)
     summaryList = pd.DataFrame(columns = ['total_days','wr_days','pnl','average_times','wr'])
     for symbol in symbols:
@@ -170,6 +169,8 @@ def ConfigReader(configFile):
     mainFutureFile      = parser.get('DEFAULT', 'mainFutureFile')
     outputpath          = parser.get('DEFAULT', 'outputpath')
     Asset               = parser.get('DEFAULT', 'asset')
+    Fee                 = np.float(parser.get('DEFAULT', 'fee'))
+    Name                = parser.get('DEFAULT', 'name')
 
     signal              = parser.get('Signal','signal')
     lbwindow            = int(parser.get('Signal','lbwindow'))
@@ -198,7 +199,7 @@ def ConfigReader(configFile):
         dataPath = ''
     #print(dataPath)
 
-    return symbols, dataPath, dataReadType, tradingDays, outputpath, signal, lbwindow, lawindow,paraset,Asset
+    return symbols, dataPath, dataReadType, tradingDays, outputpath, signal, lbwindow, lawindow,paraset,Asset,Fee,Name
 
 if __name__ == '__main__':
 

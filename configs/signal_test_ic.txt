@@ -7,14 +7,17 @@ dataReadType = gzip
 dailyDataFile = ./ref_data/all_daily_data_pindex.csv
 mainFutureFile = ./ref_data/index_future_contracts.csv
 outputpath = ./test
-asset  = Future
+asset  = ""
+fee     = 0.0015
+name = TEST1
+
 
 [Signal]
-signal = obi_extreme_future
+signal = obi_demo
 lbwindow = 20
-lawindow = 2000
-startDate = 2018-12-02
-endDate = 2019-02-27
+lawindow = 1000
+startDate = 2019-02-01
+endDate = 2019-02-22
 closeType = fixwindow
 stopWinRatio = 0.01
 paraset  = 20-4-1
