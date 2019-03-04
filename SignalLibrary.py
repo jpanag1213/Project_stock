@@ -89,9 +89,9 @@ class SignalLibrary(object):
 
 
 
-    def signal1(self):
-
-        return 0
+    def signal_obi(self):
+        self.allQuoteData[]
+        return self.allQuoteData
 
     def signal2(self):
         signal = self.signal
