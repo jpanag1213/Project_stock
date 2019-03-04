@@ -83,9 +83,9 @@ class Stats(object):
 
 
 
-    def check_file(self,file):
+    def check_file(self,file,symbol = " "):
 
-        file.to_csv(self.outputpath + 'checkquote.csv')
+        file.to_csv(self.outputpath+str(self.tradeDate)+'_'+symbol + '_checkquote.csv')
 
         return 0
 
@@ -549,19 +549,70 @@ class Stats(object):
         tradingDayFile ='./ref_data/TradingDay.csv'
         tradingDays = pd.read_csv(tradingDayFile)
 
-    def opentime(self,symbol):
+    def opentime(self,symbol,closetime = ' 14:50:00'):
         quoteData = self.quoteData[symbol]
         quoteData.loc[:,'opentime'] = 0
-        quoteData.loc[datetime.datetime.strptime(str(self.tradeDate + ' 09:30:00'), '%Y%m%d %H:%M:%S'):datetime.datetime.strptime(str(self.tradeDate + ' 14:50:00'), '%Y%m%d %H:%M:%S'),'opentime'] = 1
+        quoteData.loc[datetime.datetime.strptime(str(self.tradeDate + ' 09:30:00'), '%Y%m%d %H:%M:%S'):datetime.datetime.strptime(str(self.tradeDate +closetime), '%Y%m%d %H:%M:%S'),'opentime'] = 1
         quoteData.loc[
-        datetime.datetime.strptime(str(self.tradeDate + ' 14:50:00'), '%Y%m%d %H:%M:%S'):datetime.datetime.strptime(str(self.tradeDate + ' 14:57:00'), '%Y%m%d %H:%M:%S'), 'opentime'] =2
-        stats.check_file(quoteData)
-        return 0
+        datetime.datetime.strptime(str(self.tradeDate + closetime), '%Y%m%d %H:%M:%S'):datetime.datetime.strptime(str(self.tradeDate + ' 14:57:00'), '%Y%m%d %H:%M:%S'), 'opentime'] =2
+        #stats.check_file(quoteData)
+        return quoteData
+
+    def time_cut(self,symbol,closetime = ' 14:50:00'):
+        quoteData = self.quoteData[symbol]
+        quoteData.loc[:,'opentime'] = 0
+        quoteData.loc[datetime.datetime.strptime(str(self.tradeDate + ' 09:30:00'), '%Y%m%d %H:%M:%S'):datetime.datetime.strptime(str(self.tradeDate +closetime), '%Y%m%d %H:%M:%S'),'opentime'] = 1
+        quoteData = quoteData.loc[datetime.datetime.strptime(str(self.tradeDate + ' 09:30:00'), '%Y%m%d %H:%M:%S'):datetime.datetime.strptime(str(self.tradeDate +closetime), '%Y%m%d %H:%M:%S'),:]
+        #stats.check_file(quoteData)
+        return quoteData
 
     def responseFun(self,symbol):
         quoteData =  self.quoteData[symbol]
         quoteD = pd.DataFrame()
 
+        return 0
+
+    def zaopan_stats(self,symbol):
+        quotedata = stats.time_cut(symbol,closetime = ' 10:30:03')
+        quotedata.loc[:,'bid_spread'] = quotedata.loc[:,'bidPrice1'] - quotedata.loc[:,'bidPrice10']
+
+
+        quotedata.loc[:, 'bid_weight'] =( (quotedata.loc[:,'bidPrice1'] - quotedata.loc[:,'weighted_avg_bid_price'])**2*(quotedata.loc[:,'bidVolume1'])
+                                            +(quotedata.loc[:, 'bidPrice2'] - quotedata.loc[:, 'weighted_avg_bid_price'])**2 * (quotedata.loc[:, 'bidVolume2'])
+                                            +(quotedata.loc[:, 'bidPrice3'] - quotedata.loc[:, 'weighted_avg_bid_price'])**2 * (quotedata.loc[:, 'bidVolume3'])
+                                            +(quotedata.loc[:, 'bidPrice4'] - quotedata.loc[:, 'weighted_avg_bid_price'])**2 * (quotedata.loc[:, 'bidVolume4'])
+                                            +(quotedata.loc[:, 'bidPrice5'] - quotedata.loc[:, 'weighted_avg_bid_price'])**2 * (quotedata.loc[:, 'bidVolume5'])
+                                            +(quotedata.loc[:, 'bidPrice6'] - quotedata.loc[:, 'weighted_avg_bid_price'])**2 * (quotedata.loc[:, 'bidVolume6'])
+                                            +(quotedata.loc[:, 'bidPrice7'] - quotedata.loc[:, 'weighted_avg_bid_price'])**2 * (quotedata.loc[:, 'bidVolume7'])
+                                            +(quotedata.loc[:, 'bidPrice8'] - quotedata.loc[:, 'weighted_avg_bid_price'])**2 * (quotedata.loc[:, 'bidVolume8'])
+                                            +(quotedata.loc[:, 'bidPrice9'] - quotedata.loc[:, 'weighted_avg_bid_price'])**2 * (quotedata.loc[:, 'bidVolume9'])
+                                            +(quotedata.loc[:, 'bidPrice10'] - quotedata.loc[:, 'weighted_avg_bid_price'])**2 * (quotedata.loc[:, 'bidVolume10']))/ (quotedata.loc[:, 'total_bid_qty'])
+
+        quotedata.loc[:, 'ask_weight'] = ((quotedata.loc[:,'askPrice1'] - quotedata.loc[:,'weighted_avg_ask_price'])**2*(quotedata.loc[:,'askVolume1'])
+                                            +(quotedata.loc[:, 'askPrice2'] - quotedata.loc[:, 'weighted_avg_ask_price'])**2 * (quotedata.loc[:, 'askVolume2'])
+                                            +(quotedata.loc[:, 'askPrice3'] - quotedata.loc[:, 'weighted_avg_ask_price'])**2 * (quotedata.loc[:, 'askVolume3'])
+                                            +(quotedata.loc[:, 'askPrice4'] - quotedata.loc[:, 'weighted_avg_ask_price'])**2 * (quotedata.loc[:, 'askVolume4'])
+                                            +(quotedata.loc[:, 'askPrice5'] - quotedata.loc[:, 'weighted_avg_ask_price'])**2 * (quotedata.loc[:, 'askVolume5'])
+                                            +(quotedata.loc[:, 'askPrice6'] - quotedata.loc[:, 'weighted_avg_ask_price'])**2 * (quotedata.loc[:, 'askVolume6'])
+                                            +(quotedata.loc[:, 'askPrice7'] - quotedata.loc[:, 'weighted_avg_ask_price'])**2 * (quotedata.loc[:, 'askVolume7'])
+                                            +(quotedata.loc[:, 'askPrice8'] - quotedata.loc[:, 'weighted_avg_ask_price'])**2 * (quotedata.loc[:, 'askVolume8'])
+                                            +(quotedata.loc[:, 'askPrice9'] - quotedata.loc[:, 'weighted_avg_ask_price'])**2 * (quotedata.loc[:, 'askVolume9'])
+                                            +(quotedata.loc[:, 'askPrice10'] - quotedata.loc[:, 'weighted_avg_ask_price'])**2 * (quotedata.loc[:, 'askVolume10']))/ (quotedata.loc[:, 'total_ask_qty'])
+        quotedata.loc[:,'weight_ratio'] = quotedata.loc[:, 'bid_weight']/quotedata.loc[:, 'ask_weight']
+        quotedata.loc[:,'ratio_mean'] = quotedata.loc[:,'weight_ratio'].ewm(10).mean()
+        quotedata.loc[:,'ratio_std'] = quotedata.loc[:,'weight_ratio'].ewm(10).std()
+        positivePos = quotedata.loc[:,'weight_ratio'] > (quotedata.loc[:,'ratio_mean'] + 2*quotedata.loc[:,'ratio_std'])
+        negativePos = quotedata.loc[:,'weight_ratio'] < (quotedata.loc[:,'ratio_mean'] -2* quotedata.loc[:,'ratio_std'])
+        quotedata.loc[:,'signal'] = 0
+        quotedata.loc[positivePos,'signal'] = 1
+        quotedata.loc[negativePos,'signal'] = -1
+
+        quotedata.loc[:,'ask_spread'] = quotedata.loc[:,'askPrice1'] -quotedata.loc[:,'askPrice10']
+        quotedata.loc[:,'spread']  =  quotedata.loc[:,'askPrice1'] -quotedata.loc[:,'bidPrice1']
+        stats.check_file(quotedata,symbol)
+
+
+        return 0
 
 
 if __name__ == '__main__':
@@ -571,14 +622,14 @@ if __name__ == '__main__':
     # data = Data('E:/personalfiles/to_zhixiong/to_zhixiong/level2_data_with_factor_added','600030.SH','20170516')
     dataPath = '//192.168.0.145/data/stock/wind'
     ## /sh201707d/sh_20170703
-    tradeDate = '20190226'
+    tradeDate = '20190304'
 
-    symbols = ['000001.SZ']
+    symbols = ['300008.SZ']
     # exchange = symbol.split('.')[1].lower()
     #print(dataPath)
     data = Data.Data(dataPath,symbols, tradeDate,'' ,dataReadType= 'gzip', RAWDATA = 'True')
     stats   = Stats(symbols,tradeDate,data.quoteData,data.tradeData)
-    stats.opentime(symbols[0])
+    stats.zaopan_stats(symbols[0])
     #print(data.quoteData[symbols[0]].loc[:,'midp'])
     #stats.vol2diffop(symbols[0])
     #stats.volatility(symbols[0],20,type = 'quote_volatility')

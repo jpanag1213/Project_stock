@@ -90,7 +90,7 @@ class SignalLibrary(object):
 
 
     def signal_obi(self):
-        self.allQuoteData[]
+
         return self.allQuoteData
 
     def signal2(self):
