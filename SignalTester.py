@@ -339,7 +339,7 @@ class SignalTester(object):
         :param window: minute or ticks, look back
         :return: signal series, stadard output: 1为buy in信号，0为不操作信号， -1为卖出信号
         """
-        signalLibrary = SignalLibrary.SignalLibrary(symbol,self.allQuoteData[symbol], signal=signal)
+        signalLibrary = SignalLibrary.SignalLibrary(symbol,self.allQuoteData[symbol], signal=signal,window = window)
         self.allQuoteData[symbol] = signalLibrary.getSignal()
 
         print('Calculate obi here for symbol = ', symbol, 'with lbwindow = ', window)

@@ -51,7 +51,7 @@ class Data(object):
         # self.quoteData = self.ReadQuoteData()
         # self.symbolQuoteData = self.quoteData[self.quoteData.loc[:,'windcode'] == symbol]
         # self.tradeData  = pd.DataFrame()
-        self.tradeData = self.StructTradeData()
+        #self.tradeData = self.StructTradeData()
         # self.orderData  = pd.DataFrame()
         # self.orderData  = self.StructOrderData()
         # self.indexData = pd.DataFrame()
@@ -610,6 +610,7 @@ class Data(object):
         else:
             orderDirection = 'S'
             otherSideDirection = 'B'
+
         # start = time.time()
         # activeBuy     = activeBuy.sort_values(' nTime')
         # activeBuy     = activeBuy.reset_index()

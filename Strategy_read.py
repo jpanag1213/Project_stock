@@ -233,7 +233,7 @@ if __name__ == '__main__':
 
     #fm_o =  [file for file in filelist_all if (file[9] == 'c')&(file[17] == 'a')]
     #fm_o =  [file for file in filelist_all if (file[9] == 't')&(file[-5] == 'z')]
-    fm_o =  [file for file in filelist_all if (file[9] == 'X')]
+    fm_o =  [file for file in filelist_all if (file[12] == '1')]
     dm_o,pnl,times,wr,trade_rate = ReadTest(fm_o)
     ref_data = pd.read_csv(refPath + 'stock_price_mkt.csv')
     ref_data.index = ref_data.loc[:,'secucode']
@@ -251,12 +251,12 @@ if __name__ == '__main__':
     
     avg_pnl_cum = avg_pnl.cumsum()
     avg_pnl_cum = pnl.cumsum(axis =1 )
-    '''
+    
     for symbol in list(avg_pnl_cum.index):
         plt.figure()
         plt.plot(avg_pnl_cum.loc[symbol,:])
-        plt.savefig( './performance/'+ 'sh50/' +symbol + '.jpg')
-    '''
+        plt.savefig( './performance/'+ 'test/' +symbol + '_1.jpg')
+    
     #plt.plot(avg_pnl_cum)
     
     '''
