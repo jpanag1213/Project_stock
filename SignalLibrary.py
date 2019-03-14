@@ -252,6 +252,58 @@ class SignalLibrary(object):
         self.allQuoteData  .loc[(~positivePos) & (~negativePos), signal + '_' + str(window) + '_min'] = 0
         return self.allQuoteData  
 
+    def obi_change(self):
+        window = 20
+        signal = self.signal
+        self.allQuoteData.loc[:, 'obi'] = np.log(self.allQuoteData.loc[:, 'bidVolume1']) - np.log(
+            self.allQuoteData.loc[:, 'askVolume1'])
+
+        self.allQuoteData.loc[:, 'obi1'] = np.log(self.allQuoteData .loc[:, 'bidVolume1'] +
+                                                          self.allQuoteData .loc[:, 'bidVolume2']) - np.log(
+            self.allQuoteData .loc[:, 'askVolume1'])
+
+        self.allQuoteData .loc[:, 'obi2'] = np.log(self.allQuoteData .loc[:, 'bidVolume1']) - np.log(
+            self.allQuoteData .loc[:, 'askVolume1'] +
+            self.allQuoteData .loc[:, 'askVolume2'])
+        # self.allQuoteData .loc[:, 'obi_' + str(window) + '_min'] = self.allQuoteData .loc[:,
+        #                                                                   'obi'].rolling(window * 60).mean()
+        self.allQuoteData .loc[:, 'obi_' + str(window) + '_min'] = self.allQuoteData .loc[:, 'obi'].diff(
+            window)
+
+        askPriceDiff = self.allQuoteData ['askPrice1'].diff()
+        bidPriceDiff = self.allQuoteData ['bidPrice1'].diff()
+        midPriceChange = self.allQuoteData ['midp'].diff()
+
+        self.allQuoteData .loc[:, 'priceChange'] = 1
+        self.allQuoteData .loc[midPriceChange == 0, 'priceChange'] = 0
+
+        obi_change_list = list()
+        last_obi = self.allQuoteData ['obi'].iloc[0]
+        tick_count = 0
+        row_count = 0
+        for row in zip(self.allQuoteData ['priceChange'], self.allQuoteData ['obi']):
+            priceStatus = row[0]
+            obi = row[1]
+            if (priceStatus == 1) or np.isnan(priceStatus):
+                tick_count = 0
+                last_obi = obi
+            else:
+                last_obi = self.allQuoteData ['obi'].iloc[row_count - tick_count]
+                if tick_count <= window:
+                    tick_count = tick_count + 1
+
+            row_count = row_count + 1
+            obi_change = obi - last_obi
+            obi_change_list.append(obi_change)
+
+        self.allQuoteData .loc[:, 'obi'] = obi_change_list
+        positivePos = (self.allQuoteData ['obi2'] > 1)
+        negativePos =  (self.allQuoteData ['obi1'] < -1)
+        self.allQuoteData .loc[positivePos, signal + '_' + str(window) + '_min'] = 1
+        self.allQuoteData .loc[negativePos, signal + '_' + str(window) + '_min'] = -1
+        self.allQuoteData .loc[(~positivePos) & (~negativePos), signal + '_' + str(window) + '_min'] = 0
+        print(signal + '_' + str(window))
+        return self.allQuoteData
 
 if __name__ == '__main__':
     dataPath = '//192.168.0.145/data/stock/wind'
