@@ -254,6 +254,7 @@ class SignalLibrary(object):
 
     def obi_change(self):
         lb_window = 20
+        change_window = 10
         diff_window = 3
         signal = self.signal
         askPriceDiff = self.allQuoteData ['askPrice1'].diff()
@@ -262,18 +263,18 @@ class SignalLibrary(object):
         self.allQuoteData.loc[:, 'obi'] = np.log(self.allQuoteData.loc[:, 'bidVolume1']) - np.log(
             self.allQuoteData.loc[:, 'askVolume1'])
 
-        self.allQuoteData.loc[:, 'obi1'] = np.log(self.allQuoteData .loc[:, 'bidVolume1'] +
-                                                          self.allQuoteData .loc[:, 'bidVolume2']) - np.log(
-            self.allQuoteData .loc[:, 'askVolume1'])
-
-        self.allQuoteData .loc[:, 'obi2'] = np.log(self.allQuoteData .loc[:, 'bidVolume1']) - np.log(
-            self.allQuoteData .loc[:, 'askVolume1'] +
-            self.allQuoteData .loc[:, 'askVolume2'])
+        # self.allQuoteData.loc[:, 'obi1'] = np.log(self.allQuoteData .loc[:, 'bidVolume1'] +
+        #                                                   self.allQuoteData .loc[:, 'bidVolume2']) - np.log(
+        #     self.allQuoteData .loc[:, 'askVolume1'])
+        #
+        # self.allQuoteData .loc[:, 'obi2'] = np.log(self.allQuoteData .loc[:, 'bidVolume1']) - np.log(
+        #     self.allQuoteData .loc[:, 'askVolume1'] +
+        #     self.allQuoteData .loc[:, 'askVolume2'])
         self.allQuoteData.loc[:, 'obi_' + str(lb_window) + '_min'] = self.allQuoteData .loc[:, 'obi'].diff()
         self.allQuoteData.loc[:,'bid_volume_occupy'] = self.allQuoteData.loc[:,'bidVolume1']/self.allQuoteData.loc[:,list(map(lambda x:'askVolume' + str(x),np.arange(1,11,1)))].sum(1)
         self.allQuoteData.loc[:,'ask_volume_occupy'] = self.allQuoteData.loc[:,'askVolume1']/self.allQuoteData.loc[:,list(map(lambda x:'bidVolume' + str(x),np.arange(1,11,1)))].sum(1)
-        self.allQuoteData.loc[:,'mid_quote_up'] = (midPriceChange > 0).rolling(lb_window).sum()  # 用于记录过去tick涨的次数
-        self.allQuoteData.loc[:,'mid_quote_down'] = (midPriceChange < 0).rolling(lb_window).sum()  # 用于记录过去tick跌的次数
+        self.allQuoteData.loc[:,'mid_quote_up'] = (midPriceChange > 0).rolling(change_window).sum()  # 用于记录过去tick涨的次数
+        self.allQuoteData.loc[:,'mid_quote_down'] = (midPriceChange < 0).rolling(change_window).sum()  # 用于记录过去tick跌的次数
 
 
         self.allQuoteData .loc[:, 'priceChange'] = 1
@@ -283,25 +284,36 @@ class SignalLibrary(object):
         last_obi = self.allQuoteData ['obi'].iloc[0]
         tick_count = 0
         row_count = 0
-        for row in zip(self.allQuoteData ['mid_quote_up'],self.allQuoteData ['mid_quote_down'], self.allQuoteData ['obi']):
+        for row in zip(self.allQuoteData ['mid_quote_up'],self.allQuoteData ['mid_quote_down'], range(self.allQuoteData.shape[0])):
             priceStatus_up = row[0]
             priceStatus_down = row[1]
-            obi = row[2]
+            row_count = row[2]
             if np.isnan(priceStatus_up) or (np.isnan(priceStatus_down)):
-                tick_count = 0
-                last_obi = obi
-            else:
-                last_obi = self.allQuoteData ['obi'].iloc[row_count - tick_count]
-                if tick_count <= lb_window:
-                    tick_count = tick_count + 1
+                obi_change = 0
+            elif (priceStatus_up/change_window) >= 0.6:  # 意味着有上涨趋势，检查obi是否增加，且检查之前的挂单量是否符合预期
+                VOLUME_BIG = self.allQuoteData['ask_volume_occupy'].iloc[(row_count - diff_window):row_count].sum() > 0.5
+                OBI_CHANGE_BIG = self.allQuoteData['obi_' + str(lb_window) + '_min'].iloc[(row_count - diff_window):row_count].sum() > 5
+                if VOLUME_BIG & OBI_CHANGE_BIG:
+                    obi_change = 1
+                else:
+                    obi_change = 0
+            elif (priceStatus_down/change_window) >= 0.6:
+                VOLUME_BIG = self.allQuoteData['bid_volume_occupy'].iloc[(row_count - diff_window):row_count].sum() > 0.5
+                OBI_CHANGE_BIG = self.allQuoteData['obi_' + str(lb_window) + '_min'].iloc[(row_count - diff_window):row_count].sum() < -5
+                if VOLUME_BIG & OBI_CHANGE_BIG:
+                    obi_change = -1
+                else:
+                    obi_change = 0
 
-            row_count = row_count + 1
-            obi_change = obi - last_obi
+            else:
+                obi_change = 0
+
             obi_change_list.append(obi_change)
 
         self.allQuoteData .loc[:, 'obi'] = obi_change_list
-        positivePos = (self.allQuoteData ['obi2'] > 1)
-        negativePos =  (self.allQuoteData ['obi1'] < -1)
+        positivePos = (self.allQuoteData ['obi'] >= 1)
+        negativePos =  (self.allQuoteData ['obi'] <= -1)
+
         self.allQuoteData .loc[positivePos, signal + '_' + str(lb_window) + '_min'] = 1
         self.allQuoteData .loc[negativePos, signal + '_' + str(lb_window) + '_min'] = -1
         self.allQuoteData .loc[(~positivePos) & (~negativePos), signal + '_' + str(lb_window) + '_min'] = 0
