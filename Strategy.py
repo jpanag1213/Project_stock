@@ -318,7 +318,7 @@ class Strategy(object):
                 cumpnl = cumpnl + pnl
 
 
-        self.quoteData.loc[:, 'cumpnl'] = cumpnlList[-1]
+        self.quoteData.loc[:, 'cumpnl'] = cumpnlList
         self.quoteData.loc[:, 'currentQty'] = currentQtyList
         self.quoteData.loc[:, 'trade_flag'] = trade_flag
         if totalTimes != 0:
