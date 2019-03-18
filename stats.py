@@ -24,9 +24,17 @@ class Stats(object):
     def __init__(self, symbol, tradedate, quoteData,tradeData = None,futureData =None, outputpath = 'E://stats_test/'):
         self.symbol    = symbol
         self.tradeDate = tradedate
-        self.quoteData = quoteData
+        if isinstance(quoteData,dict):
+            self.quoteData = quoteData
+            self.tradeData = tradeData
+        else:
+            self.quoteData = dict()
+            self.quoteData[symbol] = quoteData
+            self.tradeData = dict()
+            self.tradeData[symbol] = tradeData
+
         self.outputpath = outputpath
-        self.tradeData =  tradeData
+
         self.futureData = futureData
         print(os.path.exists(outputpath))
         if os.path.exists(outputpath) is False:
@@ -265,8 +273,10 @@ class Stats(object):
         resample_tradeData = resample_tradeData.cumsum()
         resample_tradeData = resample_tradeData.loc[temp_quote_time, :]
         r_tradeData = resample_tradeData.diff()
+        r_tradeData.loc[:, 'abPrice'] = r_tradeData.loc[:, 'abPrice'] / r_tradeData.loc[:, 'abVolume']
+        r_tradeData.loc[:, 'asPrice'] = r_tradeData.loc[:, 'asPrice']/ r_tradeData.loc[:, 'asVolume']
         r_tradeData.loc[:,'timecheck'] =quotedata.loc[:, 'exchangeTime']
-        stats.check_file(r_tradeData)
+        #stats.check_file(r_tradeData)
 
         #stats.check_file(r_tradeData)
         '''
@@ -278,7 +288,7 @@ class Stats(object):
         
         # self.quoteData[symbol].loc[:, ['midp', 'bidVolume1', 'askVolume1']].to_csv(self.outputpath + './ quote_o.csv')
         '''
-        return 0
+        return r_tradeData
 
     def plot(self):
 
@@ -869,11 +879,11 @@ if __name__ == '__main__':
     # data = Data('E:/personalfiles/to_zhixiong/to_zhixiong/level2_data_with_factor_added','600030.SH','20170516')
     dataPath = '//192.168.0.145/data/stock/wind'
     ## /sh201707d/sh_20170703
-    tradeDate = '20190312'
+    tradeDate = '20190314'
     symbols_path  = 'D:/SignalTest/SignalTest/ref_data/sh50.csv'
     symbol_list = pd.read_csv(symbols_path)
 
-    symbols = ['600086.SH']
+    symbols = ['601766.SH']
 
 
     data = Data.Data(dataPath,symbols, tradeDate,'' ,dataReadType= 'gzip', RAWDATA = 'True')
@@ -885,7 +895,7 @@ if __name__ == '__main__':
         #quotedata = stats.zaopan_stats(symbol)
         #stats.cancel_order(symbol)
         #stats.price_filter()
-
-        price_situation = stats.high_obi(symbol,' 14:55:00')
-        stats.check_file(price_situation)
+        stats.cancel_order(symbol)
+        #price_situation = stats.high_obi(symbol,' 14:55:00')
+        #stats.check_file(price_situation)
     print('Test end')

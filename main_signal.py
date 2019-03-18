@@ -60,9 +60,9 @@ def run(configfile):
 
             ##todo future strategy
             if Asset == 'Future':
-                strategy = Strategy.Strategy(symbol, round(1000000/quoteData['midp'].iloc[-1],-2), quoteData, signal, tradingDay,lbwindow, lawindow, 8, 'lawindow',fee = Fee,outputpath = './strategy/' + tradingDay, stockType = 'low',asset = 'Future')
+                strategy = Strategy.Strategy(symbol, round(40000/quoteData['midp'].iloc[-1],-2), quoteData, signal, tradingDay,lbwindow, lawindow, 10, 'lawindow',fee = Fee,outputpath = './strategy/' + tradingDay, stockType = 'low',asset = 'Future')
             else:
-                strategy = Strategy.Strategy(symbol, round(1000000/quoteData['midp'].iloc[-1],-2), quoteData, signal,tradingDay,lbwindow, lawindow, 8, 'lawindow',fee = Fee,outputpath = './strategy/' + tradingDay, stockType = 'low')
+                strategy = Strategy.Strategy(symbol, round(40000/quoteData['midp'].iloc[-1],-2), quoteData, signal,tradingDay,lbwindow, lawindow, 10, 'lawindow',fee = Fee,outputpath = './strategy/' + tradingDay, stockType = 'low')
             strategy.SummaryStrategy()
             strategy.Plot()
             strategyResult.append(strategy.sts)
