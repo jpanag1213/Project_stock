@@ -288,6 +288,8 @@ class Stats(object):
         
         # self.quoteData[symbol].loc[:, ['midp', 'bidVolume1', 'askVolume1']].to_csv(self.outputpath + './ quote_o.csv')
         '''
+        r_tradeData.loc[:,'diff'] = r_tradeData.loc[:, 'abVolume'] - r_tradeData.loc[:, 'asVolume']
+        r_tradeData.loc[:,'cum_diff'] = r_tradeData.loc[:,'diff'].cumsum()
         return r_tradeData
 
     def plot(self):
@@ -720,7 +722,6 @@ class Stats(object):
         bid_cum_quote = -(11 - pd.DataFrame(price_quote.cumsum(axis=1).sum(axis=1), columns=['location']))
         bid_cum_quote.loc[bid_cum_quote.loc[:, 'location'] == -11, 'location'] = 0
         price_quote = pd.DataFrame(price_quote,dtype=int)
-
         vol_bid =  price_quote*volume_bid
         vol_bid = -1*vol_bid.sum(axis = 1)
         vol_bid = pd.DataFrame(vol_bid,columns = ['order'])
@@ -775,7 +776,7 @@ class Stats(object):
 
 
 
-    def total_price(self,symbol,closetime):
+    def total_price(self,symbol):
         quotedata = stats.time_cut(symbol,closetime = closetime)
         price_ask,volume_ask,price_bid,volume_bid = stats.quote_cut(quotedata)
         #temp = pd.Series(price_ask).value_count()
@@ -783,14 +784,15 @@ class Stats(object):
 
         return price_list
 
-    def high_obi(self,symbol,closetime):
-        quotedata = stats.time_cut(symbol,closetime = closetime)
+    def high_obi(self,symbol):
+        quotedata = self.quoteData[symbol]
+        tradeData = self.cancel_order(symbol)
+        tradeData.loc[:, 'cum_buy']  = tradeData.loc[:, 'abVolume'].rolling(10).sum()
+        tradeData.loc[:, 'cum_sell']  = tradeData.loc[:, 'asVolume'].rolling(10).sum()
 
         quotedata.loc[:,'obi'] = np.log(quotedata.loc[:,'askVolume1'] /quotedata.loc[:,'bidVolume1'])
         quotedata.loc[:, 'tv'] = quotedata.loc[:,'tradeVolume'].diff(5)
-        large_bid = quotedata.loc[:,'bidVolume1'] > quotedata.loc[:, 'tv']
-        large_ask = quotedata.loc[:, 'askVolume1'] > quotedata.loc[:, 'tv']
-        volume_bid, volume_ask,bid_loc,ask_loc = stats.large_order_count(quotedata,quotedata.loc[:, 'tv'])
+        volume_bid, volume_ask,bid_loc,ask_loc = self.large_order_count(quotedata,tradeData.loc[:, 'cum_sell'],tradeData.loc[:, 'cum_buy']  )
 
 
         quotedata.loc[:,'large_bid'] =  volume_bid
@@ -801,6 +803,7 @@ class Stats(object):
         quotedata.loc[:,'large_width'] = quotedata.loc[:,'large_ask'] - quotedata.loc[:,'large_bid']
         bid_max = list()
         ask_max = list()
+        '''
         for row in zip(quotedata.index ,volume_bid,volume_ask):
             times = str(row[0])[10:]
             print(times)
@@ -808,16 +811,19 @@ class Stats(object):
             ap = row[2]
             bid_max.append(stats.large_order(symbol,bp,times))
             ask_max.append(stats.large_order(symbol,ap,times))
-        quotedata.loc[:,'bid_max'] = bid_max
-        quotedata.loc[:,'ask_max'] = ask_max
+        '''
+        #quotedata.loc[:,'bid_max'] = bid_max
+        #quotedata.loc[:,'ask_max'] = ask_max
+
+
         quotedata.loc[:,'bid_loc'] = bid_loc
         quotedata.loc[:,'ask_loc'] = ask_loc
 
         return quotedata
 
-    def large_order_count(self,quotedata,large_margin,num = 10):
-        price_ask, volume_ask, price_bid, volume_bid = stats.quote_cut(quotedata)
-        bid_ = (volume_bid).apply(lambda  x : x - np.asarray(large_margin))> 0
+    def large_order_count(self,quotedata,large_margin_buy,large_margin_sell,num = 10):
+        price_ask, volume_ask, price_bid, volume_bid = self.quote_cut(quotedata)
+        bid_ = (volume_bid).apply(lambda  x : x - np.asarray(large_margin_sell))> 0
         bid_ = pd.DataFrame(bid_,dtype= int)
         price_bid.columns = bid_.columns
         bid_ = price_bid *bid_
@@ -831,18 +837,24 @@ class Stats(object):
         bid_loc = pd.DataFrame(bid_loc,columns=volume_bid.columns,dtype= int)
         bid_loc =( bid_loc * volume_bid ).sum(axis=1)
 
-        ask_ = (volume_ask).apply(lambda  x : x - np.asarray(large_margin))> 0
+        ask_ = (volume_ask).apply(lambda  x : x - np.asarray(large_margin_buy))> 0
         ask_ = pd.DataFrame(ask_,dtype= int)
-        #volume_loc = (volume_bid).apply(lambda x: x == np.asarray(volume_bid))
+        #volume_loc = (volume_bid).apply(lambda x: x == np.asarray(large_margin_buy))
         price_ask.columns = ask_.columns
         ask_ = price_ask *ask_
         volume_zero = ask_ ==0
         ask_[volume_zero] = np.nan
         ask_ = ask_.min(axis =1)
 
+
         ask_loc = (price_ask).apply(lambda  x : x == np.asarray(ask_))
         ask_loc = pd.DataFrame(ask_loc,columns=volume_ask.columns,dtype= int)
         ask_loc =( ask_loc * volume_ask ).sum(axis=1)
+
+        #bid_.fillna(method='ffill', inplace=True)
+        #ask_.fillna(method='ffill', inplace=True)
+        #bid_loc.fillna(method='ffill', inplace=True)
+        #ask_loc.fillna(method='ffill', inplace=True)
         return bid_,ask_,bid_loc,ask_loc
 
     def temp(self):
@@ -870,7 +882,102 @@ class Stats(object):
         stats.check_file(price_situation)
         return 0
 
+    def volume_imbalance_bar(self,symbol):
+        #tradeData = self.tradeData
+        T = 50
+        a = 1
+        exp_para = 10
+        trade_list = self.cancel_order(symbol)
+        count = 0
+        pre_bar = 0
 
+        pre_bar_list = list()
+        theta_bar_list = list()
+        bar_label = list()
+        temp_list = list()
+        count_list = list()
+        std_list = list()
+        theta_bar = 0
+        pre_bar_std = 0
+        #trade_list.loc[:, 'abVolume'] = np.exp(trade_list.loc[:,'abVolume'] /1000 )
+        #trade_list.loc[:, 'asVolume'] = np.exp(trade_list.loc[:,'asVolume'] /1000)
+        for row in zip(trade_list.loc[:,'abVolume'],trade_list.loc[:,'asVolume']):
+            buy_volume  = row[0]
+            sell_volume = row[1]
+            if np.isnan(buy_volume):
+                buy_volume = 0
+            if np.isnan(sell_volume):
+                sell_volume = 0
+
+            if count < T:
+
+                pre_bar  = pre_bar + buy_volume - sell_volume
+                bar_label.append(0)
+            else:
+                theta_bar =  theta_bar +buy_volume - sell_volume
+
+
+
+                if ((theta_bar)- (pre_bar) )>a *  pre_bar_std:
+                    bar_label.append(1)
+                    temp_list.append(theta_bar)
+                    pre_bar_df = (pd.DataFrame(temp_list))
+                    pre_bar_df_ewm = (pre_bar_df.ewm(exp_para).mean())
+                    theta_bar = 0.0
+                    if pre_bar_df_ewm.shape[0]>1:
+                        pre_bar_std = (pre_bar_df.ewm(exp_para).std()).iloc[-1,0]
+                    else:
+                        pre_bar_std = 0
+                    #print(pre_bar_df_ewm.iloc[-1,0])
+                    pre_bar = pre_bar_df_ewm.iloc[-1,0]
+                    #print(theta_bar)
+                    #theta_bar = 0.0
+                elif ((theta_bar)- (pre_bar) )<-a*  pre_bar_std:
+                    bar_label.append(-1)
+                    theta_bar = 0.0
+                    temp_list.append(theta_bar)
+                    pre_bar_df = (pd.DataFrame(temp_list))
+                    pre_bar_df_ewm = (pre_bar_df.ewm(exp_para).mean())
+                    if pre_bar_df_ewm.shape[0]>1:
+                        pre_bar_std = (pre_bar_df.ewm(exp_para).std()).iloc[-1,0]
+                    else:
+                        pre_bar_std = 0
+                    #print(pre_bar_df_ewm.iloc[-1,0])
+                    pre_bar = pre_bar_df_ewm.iloc[-1,0]
+
+
+
+                else:
+                    bar_label.append(0)
+
+            count = count + 1
+            std_list.append(pre_bar_std)
+            pre_bar_list.append(pre_bar)
+            theta_bar_list.append(theta_bar)
+            count_list.append(count)
+
+
+
+        trade_list.loc[:, 'pre_bar_list'] = pre_bar_list
+        trade_list.loc[:, 'theta_bar_list'] = theta_bar_list
+        trade_list.loc[:, 'bar_label'] = bar_label
+        trade_list.loc[:, 'count_list'] = count_list
+        trade_list.loc[:, 'pre_bar_std'] = std_list
+
+        return trade_list
+
+    def response_fun(self,symbol):
+        tradeData = self.cancel_order(symbol)
+        #print(tradeData)
+        tradeData.loc[:,'abPrice'].fillna(method='ffill', inplace=True)
+        tradeData.loc[:, 'asPrice'].fillna(method='ffill', inplace=True)
+        tradeData.loc[:,'avg_price'] =  ((tradeData.loc[:, 'abVolume' ]   *tradeData.loc[:, 'abPrice' ] ) +tradeData.loc[:, 'asVolume' ]   *tradeData.loc[:, 'asPrice' ] ) /(tradeData.loc[:, 'asVolume' ]+tradeData.loc[:, 'abVolume' ])
+        delta_Price = tradeData.loc[:,'avg_price'].diff()
+
+        bar_list = list()
+
+
+        return tradeData
 
 if __name__ == '__main__':
     """
@@ -879,11 +986,11 @@ if __name__ == '__main__':
     # data = Data('E:/personalfiles/to_zhixiong/to_zhixiong/level2_data_with_factor_added','600030.SH','20170516')
     dataPath = '//192.168.0.145/data/stock/wind'
     ## /sh201707d/sh_20170703
-    tradeDate = '20190314'
+    tradeDate = '20190321'
     symbols_path  = 'D:/SignalTest/SignalTest/ref_data/sh50.csv'
     symbol_list = pd.read_csv(symbols_path)
 
-    symbols = ['601766.SH']
+    symbols = ['600086.SH']
 
 
     data = Data.Data(dataPath,symbols, tradeDate,'' ,dataReadType= 'gzip', RAWDATA = 'True')
@@ -895,7 +1002,7 @@ if __name__ == '__main__':
         #quotedata = stats.zaopan_stats(symbol)
         #stats.cancel_order(symbol)
         #stats.price_filter()
-        stats.cancel_order(symbol)
+        price_situation = stats.high_obi(symbol)
         #price_situation = stats.high_obi(symbol,' 14:55:00')
-        #stats.check_file(price_situation)
+        stats.check_file(price_situation)
     print('Test end')

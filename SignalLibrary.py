@@ -363,10 +363,19 @@ class SignalLibrary(object):
 
 
     def obi_test(self):
+        ### 20190318
+        ###下单点位全歪了
+        ### 衡量了交易流的异常点。（其实就是通过std 和mean来衡量大单，相对于当前状态的）
+        ### 计算了突破重要价格点所用的order量，这里重要价格点位弄的比较糟糕，因而下单点位不大对。
         window = self.window
         signal = self.signal
         symbol = self.symbol
-        tradeList = self.Stats.cancel_order(symbol)
+        T =100
+        self.allQuoteData = self.Stats.high_obi(symbol)
+        tradeList = self.Stats.volume_imbalance_bar(symbol)
+        tradeList.loc[:,'vol_imb'] = tradeList.loc[:,'abVolume'] - tradeList.loc[:,'asVolume']
+        tradeList.loc[:,'vol_imb_mean'] = tradeList.loc[:,'vol_imb'].cumsum()
+        tradeList.loc[:,'vol_imb_std'] = tradeList.loc[:,'vol_imb'].rolling(T).std()
         self.allQuoteData = pd.merge(left = self.allQuoteData,right = tradeList,left_index= True,right_index= True, how = 'outer')
         ##''
         self.allQuoteData.loc[:, 'obi'] = np.log(self.allQuoteData.loc[:, 'bidVolume1']) - np.log(
@@ -391,8 +400,8 @@ class SignalLibrary(object):
         active_ask_list = list()
         atb_rate_list = list()
         ata_rate_list = list()
-        ab_cum_list = list()
-        as_cum_list = list()
+        bv_count_list = list()
+        av_count_list= list()
         last_obi = self.allQuoteData ['obi'].iloc[0]
         tick_count = 0
         row_count = 0
@@ -417,24 +426,22 @@ class SignalLibrary(object):
             if spread <0.015:
                 if ((priceStatus_ask == 1)&(priceStatus_bid == -1)) or np.isnan(priceStatus_ask):
                     tick_count = 0
-                    av_count = av
-                    bv_count = bv
-                    active_bid = active_bid +(av -  av_diff ) #+ bv
+
+                    active_bid = active_bid +abVolume
 
                     #av_diff = NowTick - preTick
                 elif (priceStatus_ask == -1) :
                     active_bid = 0
                 else:
-                    active_bid = av_count -av
+                    active_bid == active_bid +abVolume
 
                 if ((priceStatus_ask == -1)&(priceStatus_bid == 1))or np.isnan(priceStatus_bid):
-                    bv_count = bv
-                    av_count = av
-                    active_ask = active_ask + (bv - bv_diff) #+ av
+
+                    active_ask = active_ask + asVolume
                 elif (priceStatus_bid == -1):
                     active_ask = 0
                 else:
-                    active_ask = bv_count -bv
+                    active_ask =active_ask + asVolume
 
 
                 row_count = row_count + 1
@@ -449,37 +456,39 @@ class SignalLibrary(object):
             else:
                 atb_rate = 0
                 ata_rate = 0
-            ab_cum = ab_cum+abVolume
-            as_cum = as_cum+asVolume
+
             #print(active_bid)
             #print((active_ask - active_bid))
             active_ask_list.append(active_ask)
             active_bid_list.append(active_bid)
             atb_rate_list.append(atb_rate)
             ata_rate_list.append(ata_rate)
-            ab_cum_list.append(ab_cum)
-            as_cum_list.append(as_cum)
-            if (priceStatus_ask == 1) or np.isnan(priceStatus_ask):
+            av_count_list.append(av_count)
+            bv_count_list.append(bv_count)
+            if ((priceStatus_ask == 1)&(priceStatus_bid == -1)) or np.isnan(priceStatus_ask):
                 active_ask = 0
                 ab_cum = 0
                 as_cum = 0
-            if (priceStatus_bid == 1) or np.isnan(priceStatus_bid):
+                bv_count = bv
+                av_count = av
+            if ((priceStatus_ask == -1)&(priceStatus_bid == 1))or np.isnan(priceStatus_bid):
                 active_bid = 0
                 ab_cum = 0
                 as_cum = 0
-
+                bv_count = bv
+                av_count = av
         self.allQuoteData .loc[:, 'avtive_ask_list'] = active_ask_list
         self.allQuoteData .loc[:, 'avtive_bid_list'] = active_bid_list
         self.allQuoteData .loc[:, 'atb_rate'] = atb_rate_list
         self.allQuoteData .loc[:, 'ata_rate'] = ata_rate_list
-        self.allQuoteData .loc[:, 'ab_cum_list'] = ab_cum_list
-        self.allQuoteData .loc[:, 'as_cum_list'] = as_cum_list
+        self.allQuoteData .loc[:, 'av_count_list'] = av_count_list
+        self.allQuoteData .loc[:, 'bv_count_list'] = bv_count_list
 
-        self.allQuoteData.loc[:,'obt_rate_buy'] = self.allQuoteData .loc[:, 'avtive_bid_list'] / self.allQuoteData .loc[:, 'ab_cum_list']
-        self.allQuoteData.loc[:,'obt_rate_sell'] = self.allQuoteData .loc[:, 'avtive_ask_list'] / self.allQuoteData .loc[:, 'as_cum_list']
-
-        positivePos = (self.allQuoteData .loc[:, 'atb_rate']>0.9)&(self.allQuoteData .loc[:, 'avtive_bid_list'] >200000)&(self.allQuoteData ['ask_negChange'] ==1)&(self.allQuoteData.loc[:,'obt_rate_buy'] >1/2)
-        negativePos =  (self.allQuoteData .loc[:, 'ata_rate']>0.9)&(self.allQuoteData .loc[:, 'avtive_ask_list'] >200000)&(self.allQuoteData ['bid_negChange'] ==1)&(self.allQuoteData.loc[:,'obt_rate_sell'] >1/2)
+        #self.allQuoteData.loc[:,'obt_rate_buy'] = self.allQuoteData .loc[:, 'avtive_bid_list'] / self.allQuoteData .loc[:, 'ab_cum_list']
+        #self.allQuoteData.loc[:,'obt_rate_sell'] = self.allQuoteData .loc[:, 'avtive_ask_list'] / self.allQuoteData .loc[:, 'as_cum_list']
+        #large_width
+        positivePos =(self.allQuoteData .loc[:, 'large_width']==0.01)& (self.allQuoteData .loc[:, 'atb_rate']>0.5)&(self.allQuoteData .loc[:, 'avtive_bid_list']>50000)&(self.allQuoteData ['ask_negChange'] ==1)&(self.allQuoteData ['bar_label'] ==1)
+        negativePos =  (self.allQuoteData .loc[:, 'large_width']==0.01)&(self.allQuoteData .loc[:, 'ata_rate']>0.5)&(self.allQuoteData .loc[:, 'avtive_ask_list'] >50000)&(self.allQuoteData ['bid_negChange'] ==1)&(self.allQuoteData ['bar_label'] ==-1)
         self.allQuoteData .loc[positivePos, signal + '_' + str(window) + '_min'] = 1
         self.allQuoteData .loc[negativePos, signal + '_' + str(window) + '_min'] = -1
         self.allQuoteData .loc[(~positivePos) & (~negativePos), signal + '_' + str(window) + '_min'] = 0
@@ -487,6 +496,30 @@ class SignalLibrary(object):
         #print(signal + '_' + str(window))
         # self.allQuoteData.to_csv(self.outputpath+ signal+'_.csv')
         return self.allQuoteData
+
+
+    def bolling(self):
+        T =20
+        symbol = self.symbol
+        signal = self.signal
+        window = self.window
+
+        self.allQuoteData =self.Stats.high_obi(symbol)
+        self.allQuoteData.loc[:,'upper_std'] = self.allQuoteData.loc[:,'large_ask'].rolling(T).std()
+        self.allQuoteData.loc[:, 'upper'] = self.allQuoteData.loc[:, 'large_ask'].rolling(T).mean()
+        self.allQuoteData.loc[:,'lower'] = self.allQuoteData.loc[:,'large_bid'].rolling(T).mean()
+        self.allQuoteData.loc[:,'lower_std'] = self.allQuoteData.loc[:,'large_bid'].rolling(T).std()
+        large_spread =  (self.allQuoteData.loc[:,'large_width'].isnull().any())
+        positivePos =large_spread& (self.allQuoteData.loc[:,'midp']>self.allQuoteData.loc[:,'upper'].shift(1) )&(self.allQuoteData.loc[:,'midp'].shift(1)<self.allQuoteData.loc[:,'upper'].shift(1))
+        negativePos = large_spread& ( self.allQuoteData.loc[:,'midp']<self.allQuoteData.loc[:,'lower'].shift(1))& ( self.allQuoteData.loc[:,'midp'].shift(1)>self.allQuoteData.loc[:,'lower'].shift(1))
+
+        self.allQuoteData.loc[:,'midp']
+        self.allQuoteData .loc[positivePos, signal + '_' + str(window) + '_min'] = 1
+        self.allQuoteData .loc[negativePos, signal + '_' + str(window) + '_min'] = -1
+        self.allQuoteData .loc[(~positivePos) & (~negativePos), signal + '_' + str(window) + '_min'] = 0
+        return self.allQuoteData
+
+
 
 
 if __name__ == '__main__':
