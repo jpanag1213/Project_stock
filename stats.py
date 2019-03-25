@@ -792,17 +792,28 @@ class Stats(object):
 
         quotedata.loc[:,'obi'] = np.log(quotedata.loc[:,'askVolume1'] /quotedata.loc[:,'bidVolume1'])
         quotedata.loc[:, 'tv'] = quotedata.loc[:,'tradeVolume'].diff(5)
-        volume_bid, volume_ask,bid_loc,ask_loc = self.large_order_count(quotedata,tradeData.loc[:, 'cum_sell'],tradeData.loc[:, 'cum_buy']  )
+        volume_bid, volume_ask,bid_loc,ask_loc = self.large_order_count(quotedata,tradeData.loc[:, 'cum_buy'],tradeData.loc[:, 'cum_sell']  )
+
+
+        vb = list()
+        va = list()
+        pb = list()
+        pb = list()
 
 
         quotedata.loc[:,'large_bid'] =  volume_bid
         quotedata.loc[:,'large_ask'] = volume_ask
+
+
+
+
+
+
         #quotedata.loc[large_ask,'large_ask'] =  quotedata.loc[large_ask,'askPrice1']
         #quotedata.loc[:,'large_bid'].fillna(method='ffill', inplace=True)
         #quotedata.loc[:,'large_ask'].fillna(method='ffill', inplace=True)
         quotedata.loc[:,'large_width'] = quotedata.loc[:,'large_ask'] - quotedata.loc[:,'large_bid']
-        bid_max = list()
-        ask_max = list()
+
         '''
         for row in zip(quotedata.index ,volume_bid,volume_ask):
             times = str(row[0])[10:]
@@ -990,7 +1001,7 @@ if __name__ == '__main__':
     symbols_path  = 'D:/SignalTest/SignalTest/ref_data/sh50.csv'
     symbol_list = pd.read_csv(symbols_path)
 
-    symbols = ['600086.SH']
+    symbols = ['002714.SZ']
 
 
     data = Data.Data(dataPath,symbols, tradeDate,'' ,dataReadType= 'gzip', RAWDATA = 'True')

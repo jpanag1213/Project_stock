@@ -40,6 +40,20 @@ class Strategy(object):
         self.quoteData = self.opentime()
         self.fee = fee
 
+
+        ### 策略初始化
+        self.pnl = 0
+        self.openPrice = 0
+        self.totalTimes = 0
+        self.winTimes = 0
+        self.trade_qty = 0
+        self.trade_flag = list()
+        self.currentQty = 0  # 当前持仓，用来看当前仓位的变化
+        self.currentQtyList = list()
+        self.holdTime = 0  # 用来记录持仓时长
+        self.count = 0  # 记录交易次数
+
+
         if os.path.exists(outputpath) is False:
             os.makedirs(outputpath)
 
@@ -162,11 +176,6 @@ class Strategy(object):
         :return: pd.DataFrame, strategy summary of the stock.
         """
         fee = self.fee
-        currentQty = 0  # 当前持仓，用来看当前仓位的变化
-        pnl = 0  #
-        currentQtyList = list()
-        holdTime = 0  # 用来记录持仓时长
-        count = 0  # 记录交易次数
 
         if self.asset == 'Future':
             openQty = round(self.qty / self.times / (200 / 12))
@@ -176,125 +185,101 @@ class Strategy(object):
 
         cumpnl = 0
         cumpnlList = list()
-        openPrice = 0
-        totalTimes = 0
-        winTimes = 0
-        trade_qty = 0
-        trade_flag = list()
+
         pnl_list = list()
         openpricelist = list()
         bidPricelist = list()
         askPricelist = list()
+
         ''' 
         debug list :record_ 
         '''
 
-        temp_tick = 0
-        record_ = list()
         # self.quoteData.to_csv('./'+self.symbol+'_test_.csv')
 
         for row in zip(self.quoteData.loc[:, self.signal + '_' + str(self.lbwindow) + '_min'],
                        self.quoteData['bidPrice1'], self.quoteData['askPrice1'], self.quoteData['midp'],
                        self.quoteData.openstatus):
             longShort = row[0]  # 1 is long, -1 is short
+            self.longShort = longShort
+
+
             bidPrice = row[1]
             askPrice = row[2]
             lastPrice = row[3]
             openstatus = row[4]
             if (openstatus != 0):
                 if (openstatus == 2):  ##收盘平仓
-                    if currentQty > 0:
-                        pnl = (bidPrice - openPrice - openPrice * fee) * currentQty
-                        # pnl = (bidPrice - openPrice - openPrice * 0.0015)*currentQty
-                        trade_qty = trade_qty + abs(currentQty)
-                        count = count + 1
-                        holdTime = 0
-                        currentQty = 0
-                        totalTimes = totalTimes + 1
-                        trade_flag.append(3)
-                        if pnl > 0:
-                            winTimes = winTimes + 1
-                    elif currentQty < 0:
-                        pnl = -(openPrice - askPrice - openPrice * fee) * currentQty
-                        # pnl = -(openPrice - askPrice - openPrice * 0.0015)*currentQty
-                        trade_qty = trade_qty + abs(currentQty)
-                        count = count + 1
-                        holdTime = 0
-                        currentQty = 0
-                        totalTimes = totalTimes + 1
-                        trade_flag.append(-3)
-                        if pnl > 0:
-                            winTimes = winTimes + 1
+                    if self.currentQty > 0:
+                        self.LongClose(bidPrice,self.openPrice)
+                    elif self.currentQty < 0:
+                        self.ShortClose(askPrice, self.openPrice)
                     else:
-                        trade_flag.append(np.nan)
-                        pnl = 0
+                        self.trade_flag.append(np.nan)
+                        self.pnl = 0
                 elif (openstatus == 1):
                     if longShort == 1:
-                        if currentQty > 0:
-                            holdTime = 0  # 当有持续信号时，暂时不考虑重复开仓，防止记录麻烦。之后需要改进。因此这里需要重新记录持仓时间
-                            pnl = 0
-                            trade_flag.append(2)
-                        elif currentQty < 0:
-                            Strategy.ShortClose(askPrice, openPrice)
-                        elif currentQty == 0:
+                        if self.currentQty > 0:
+                            self.holdTime = 0  # 当有持续信号时，暂时不考虑重复开仓，防止记录麻烦。之后需要改进。因此这里需要重新记录持仓时间
+                            self.pnl = 0
+                            self.trade_flag.append(2)
+                        elif self.currentQty < 0:
+                            Strategy.ShortClose(askPrice, self.openPrice)
+                        elif self.currentQty == 0:
                             Strategy.LongOpen(askPrice)
 
 
 
                     elif longShort == -1:
 
-                        if currentQty < 0:
-                            holdTime = 0  # 当有持续信号时，暂时不考虑重复开仓，防止记录麻烦。之后需要改进。因此这里需要重新记录持仓时间
-                            pnl = 0
-                            trade_flag.append(-2)
-                        elif currentQty > 0:
-                            Strategy.LongClose(bidPrice, openPrice)
-                        elif currentQty == 0:
+                        if self.currentQty < 0:
+                            self.holdTime = 0  # 当有持续信号时，暂时不考虑重复开仓，防止记录麻烦。之后需要改进。因此这里需要重新记录持仓时间
+                            self.pnl = 0
+                            self.trade_flag.append(-2)
+                        elif self.currentQty > 0:
+                            Strategy.LongClose(bidPrice, self.openPrice)
+                        elif self.currentQty == 0:
                             Strategy.ShortOpen(bidPrice)
 
 
                     else:
-                        if currentQty == 0:
-                            pnl = 0
-                            trade_flag.append(np.nan)
-                        elif currentQty > 0:
-                            if holdTime < self.lawindow:
-                                holdTime = holdTime + 1
-                                pnl = 0
-                                trade_flag.append(np.nan)
+                        if self.currentQty == 0:
+                            self.pnl = 0
+                            self.trade_flag.append(np.nan)
+                        elif self.currentQty > 0:
+                            if self.holdTime < self.lawindow:
+                                self.holdTime = self.holdTime  + 1
+                                self.pnl = 0
+                                self.trade_flag.append(np.nan)
                             else:
-                                Strategy.LongClose(bidPrice,openPrice)
-                        elif currentQty < 0:
-                            if holdTime < self.lawindow:
-                                holdTime = holdTime + 1
-                                pnl = 0
-                                trade_flag.append(np.nan)
+                                Strategy.LongClose(bidPrice,self.openPrice)
+                        elif self.currentQty < 0:
+                            if self.holdTime < self.lawindow:
+                                ###时间止损
+                                self.holdTime = self.holdTime + 1
+                                self.pnl = 0
+                                self.trade_flag.append(np.nan)
                             else:
-                                Strategy.ShortClose(askPrice,openPrice)
+                                Strategy.ShortClose(askPrice,self.openPrice)
             else:
-                pnl = 0
-                trade_flag.append(np.nan)
+                self.pnl = 0
+                self.trade_flag.append(np.nan)
 
-            pnl_list.append(pnl)
-            openpricelist.append(openPrice)
+            openpricelist.append(self.openPrice)
             bidPricelist.append(bidPrice)
             askPricelist.append(askPrice)
 
-            currentQtyList.append(self.qty + currentQty)
+            self.currentQtyList.append(self.qty + self.currentQty)
             # currentQtyList.append(currentQty)
-            cumpnlList.append(cumpnl + pnl + currentQty * (lastPrice - openPrice))
-            if pnl != 0:
-                cumpnl = cumpnl + pnl
+            cumpnlList.append(cumpnl + self.pnl + self.currentQty * (lastPrice - self.openPrice))
+            if self.pnl != 0:
+                cumpnl = cumpnl + self.pnl
 
         self.quoteData.loc[:, 'cumpnl'] = cumpnlList
-        self.quoteData.loc[:, 'currentQty'] = currentQtyList
-        self.quoteData.loc[:, 'trade_flag'] = trade_flag
-        self.quoteData.loc[:, 'pnl_list'] = pnl_list
-        self.quoteData.loc[:, 'openpricelist'] = openpricelist
-        self.quoteData.loc[:, 'bidPricelist'] = bidPricelist
-        self.quoteData.loc[:, 'askPricelist'] = askPricelist
-        if totalTimes != 0:
-            wr = winTimes / totalTimes
+        self.quoteData.loc[:, 'currentQty'] = self.currentQtyList
+        self.quoteData.loc[:, 'trade_flag'] = self.trade_flag
+        if self.totalTimes != 0:
+            wr = self.winTimes / self.totalTimes
         else:
             wr = 0
         pnlpct = cumpnlList[-1] / (lastPrice * self.qty)
@@ -302,8 +287,8 @@ class Strategy(object):
         self.sts.loc[self.symbol, 'wr'] = wr
         self.sts.loc[self.symbol, 'pnl'] = pnlpct
         self.sts.loc[self.symbol, 'todayup'] = todayUpDowns
-        self.sts.loc[self.symbol, 'trade_qty'] = trade_qty
-        self.sts.loc[self.symbol, 'times'] = totalTimes
+        self.sts.loc[self.symbol, 'trade_qty'] = self.trade_qty
+        self.sts.loc[self.symbol, 'times'] = self.totalTimes
 
         self.sts.loc[self.symbol, 'total_qty'] = self.qty
         self.sts.loc[self.symbol, 'actualpnl'] = cumpnlList[-1]
@@ -333,7 +318,6 @@ class Strategy(object):
         self.totalTimes = self.totalTimes + 1
         if self.pnl > 0:
             self.winTimes = self.winTimes + 1
-        self.trade_flag.append(4)
         return 0
 
     def ShortOpen(self,enterPrice):
@@ -365,3 +349,5 @@ class Strategy(object):
 
 
         return 0
+
+

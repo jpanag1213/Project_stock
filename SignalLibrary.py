@@ -519,9 +519,6 @@ class SignalLibrary(object):
         self.allQuoteData .loc[(~positivePos) & (~negativePos), signal + '_' + str(window) + '_min'] = 0
         return self.allQuoteData
 
-
-
-
 if __name__ == '__main__':
     dataPath = '//192.168.0.145/data/stock/wind'
     ## /sh201707d/sh_20170703
