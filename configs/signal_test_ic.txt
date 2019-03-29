@@ -13,11 +13,11 @@ name = TEST2
 
 
 [Signal]
-signal = bolling
+signal =obi_org
 lbwindow = 20
-lawindow =300
-startDate = 2019-03-18
-endDate = 2019-03-21
+lawindow =100
+startDate = 2019-03-01
+endDate = 2019-03-30
 closeType = fixwindow
 stopWinRatio = 0.01
 paraset  = 20-4-1

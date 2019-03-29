@@ -17,7 +17,7 @@ from Utils import *
 import matplotlib.pyplot as plt
 import datetime
 import stats
-
+from numba import jit
 
 class SignalLibrary(object):
 
@@ -33,7 +33,7 @@ class SignalLibrary(object):
 
 
     def getSignal(self):
-        print(self.signal)
+        #print(self.signal)
         signal = getattr(SignalLibrary,self.signal)
         #print(signal(self))
         return signal(self)
@@ -519,6 +519,265 @@ class SignalLibrary(object):
         self.allQuoteData .loc[(~positivePos) & (~negativePos), signal + '_' + str(window) + '_min'] = 0
         return self.allQuoteData
 
+
+    def obi_org(self):
+        signal = self.signal
+        window =self.window
+        symbol = self.symbol
+        self.allQuoteData = self.Stats.high_obi(symbol)
+
+
+
+        small_obi_bid = self.allQuoteData .loc[:, 'bidVolume1']<self.allQuoteData .loc[:, 'asVolume']
+        small_obi_ask = self.allQuoteData .loc[:, 'askVolume1']<self.allQuoteData .loc[:, 'abVolume']
+
+        self.allQuoteData.loc[small_obi_bid, 'bidVolume1'] = 1
+        self.allQuoteData.loc[small_obi_ask, 'askVolume1'] = 1
+        self.allQuoteData .loc[:, 'obi'] = np.log(self.allQuoteData .loc[:, 'bidVolume1']) - np.log(
+            self.allQuoteData .loc[:, 'askVolume1'])
+        large_obi = np.abs(self.allQuoteData.loc[:, 'obi']) > 2
+        self.allQuoteData.loc[large_obi, 'obi'] = 0
+        # self.allQuoteData .loc[:, 'obi_' + str(window) + '_min'] = self.allQuoteData .loc[:,
+        #                                                                   'obi'].rolling(window * 60).mean()
+        self.allQuoteData .loc[:, 'obi_' + str(window) + '_min'] = self.allQuoteData .loc[:, 'obi'].diff(
+            window)
+        # positivePos = self.allQuoteData ['obi_' + str(window) + '_min'] > 8
+        # negativePos = self.allQuoteData ['obi_' + str(window) + '_min'] < -8
+        # self.allQuoteData .loc[positivePos, 'obi_' + str(window) + '_min'] = 1
+        # self.allQuoteData .loc[negativePos, 'obi_' + str(window) + '_min'] = -1
+        # self.allQuoteData .loc[(~positivePos) & (~negativePos), 'obi_' + str(window) + '_min'] = 0'''''
+        askPriceDiff = self.allQuoteData ['askPrice1'].diff()
+        bidPriceDiff = self.allQuoteData ['bidPrice1'].diff()
+        midPriceChange = self.allQuoteData ['midp'].diff()
+    
+        self.allQuoteData .loc[:, 'priceChange'] = 1
+        self.allQuoteData .loc[midPriceChange == 0, 'priceChange'] = 0
+    
+        obi_change_list = list()
+        last_obi = self.allQuoteData ['obi'].iloc[0]
+        tick_count = 0
+        row_count = 0
+        bid_list = list()
+        ask_list = list()
+        for row in zip(self.allQuoteData ['priceChange'], self.allQuoteData ['obi'], self.allQuoteData ['large_bid'], self.allQuoteData ['large_ask'],self.allQuoteData ['bidPrice1'],self.allQuoteData ['askPrice1']):
+            priceStatus = row[0]
+            obi = row[1]
+            large_bid = row[2]
+            large_ask = row[3]
+            askPrice1 = row[4]
+            bidPrice1 = row[5]
+            bid_list.append(large_bid)
+            ask_list.append(large_ask)
+
+
+
+            if (priceStatus == 1) or np.isnan(priceStatus):
+                tick_count = 0
+                last_obi = obi
+
+            else:
+                #if (bidPrice1 in bid_list) or (askPrice1 in ask_list) :
+                last_obi = self.allQuoteData ['obi'].iloc[row_count - tick_count]
+                if tick_count <= 50:
+                    tick_count = tick_count + 1
+
+            row_count = row_count + 1
+            obi_change = obi - last_obi
+            obi_change_list.append(obi_change)
+    
+        self.allQuoteData .loc[:, 'obi'] = obi_change_list
+        large_wid = self.allQuoteData.loc[:,'large_width'] >0.05
+        mid_window =( self.allQuoteData.loc[:,'large_ask']  +self.allQuoteData.loc[:,'large_bid'])/2
+        large_bid_obi = (self.allQuoteData ['obi'].shift(2) > 3)
+        large_ask_obi = (self.allQuoteData ['obi'].shift(2)<- 3)
+        positivePos = large_bid_obi
+        negativePos = large_ask_obi
+        '''
+        self.allQuoteData .loc[positivePos, 'obi_org_' + str(window) + '_min'] = 1
+        self.allQuoteData .loc[negativePos, 'obi_org_' + str(window) + '_min'] = -1
+        self.allQuoteData .loc[(~positivePos) & (~negativePos), 'obi_org_' + str(window) + '_min'] = 0
+       
+        self.allQuoteData .loc[positivePos, 'kp'] = 1
+        self.allQuoteData .loc[negativePos,  'kp'] = -1
+        self.allQuoteData .loc[(~positivePos) & (~negativePos), 'kp'] = 0
+        self.allQuoteData = self.Stats.point_monitor(symbol,self.allQuoteData .loc[:,  'kp'] )
+        
+
+        positivePos = (self.allQuoteData ['midp_change'] >self.allQuoteData ['vm'] + 4*self.allQuoteData ['vs'] )
+        negativePos = (self.allQuoteData ['midp_change']<self.allQuoteData ['vm'] - 4* self.allQuoteData ['vs'] )
+        '''
+        self.allQuoteData .loc[positivePos, 'obi_org_' + str(window) + '_min'] = 1
+        self.allQuoteData .loc[negativePos, 'obi_org_' + str(window) + '_min'] = -1
+        self.allQuoteData .loc[(~positivePos) & (~negativePos), 'obi_org_' + str(window) + '_min'] = 0
+        #negativePos = (self.allQuoteData ['obi'] < -2)
+        # self.allQuoteData .loc[:,''] =
+        # self.allQuoteData .loc[:, 'obi' + str(window) + '_min_sum'] = self.allQuoteData .loc[:,'obi'].rolling(window * 60).sum()
+        # todo: 把几层obi当作一层看待，适合高价股？
+        print('Calculate obi here for symbol = ', symbol, 'with lbwindow = ', window)
+        return  self.allQuoteData
+
+    def ex_ob(self):
+        window = self.window
+        signal = self.signal
+        # todo: revise the obi signal here
+        ex_ob_ = list()
+        ex_ob_.append(0)
+        ex_ob_bid = list()
+        ex_ob_bid.append(0)
+        ex_ob_ask = list()
+        ex_ob_ask.append(0)
+        ex_ob_ahead = list()
+        ex_ob_ahead.append(0)
+        self.allQuoteData .loc[:, 'obi_'] = (self.allQuoteData .loc[:, 'bidVolume1'] +self.allQuoteData .loc[:, 'bidVolume2']
+                                                    + self.allQuoteData .loc[:, 'bidVolume3']
+                                                   )/(self.allQuoteData .loc[:, 'askVolume1'] + self.allQuoteData .loc[:, 'askVolume2']
+                                                      + self.allQuoteData .loc[:, 'askVolume3'])
+
+        lth = len(self.allQuoteData .loc[:, 'bidVolume1'])
+
+        fac = []
+
+        ap_list = ['askPrice1', 'askPrice2', 'askPrice3','askPrice4', 'askPrice5']
+        bp_list = ['bidPrice1', 'bidPrice2', 'bidPrice3', 'bidPrice4', 'bidPrice5']
+
+
+        av_list = ['askVolume1', 'askVolume2', 'askVolume3', 'askVolume4', 'askVolume5']
+        bv_list = ['bidVolume1', 'bidVolume2', 'bidVolume3', 'bidVolume4', 'bidVolume5']
+
+        ap_list_ahead = ['askPrice1', 'askPrice2', 'askPrice3','askPrice4', 'askPrice5']
+        bp_list_ahead = ['bidPrice1', 'bidPrice2', 'bidPrice3', 'bidPrice4', 'bidPrice5']
+
+        av_list_ahead = ['askVolume1', 'askVolume2', 'askVolume3', 'askVolume4', 'askVolume5']
+        bv_list_ahead = ['bidVolume1', 'bidVolume2', 'bidVolume3', 'bidVolume4', 'bidVolume5']
+        for i in range(1, lth):
+
+            if (i == 1):
+                Askp_array = np.array(())
+                Askv_array = np.array(())
+                bidp_array = np.array(())
+                bidv_array = np.array(())
+                pre_midp = (self.allQuoteData .bidPrice1.values[i] +self.allQuoteData .askPrice1.values[i]) / 2
+            pre_ask = np.sum(Askv_array)
+            pre_bid = np.sum(bidv_array)
+
+            if (i > 1):
+
+                bid_pos_ind = bidp_array <= self.allQuoteData .bidPrice1.values[i]
+                ask_pos_ind = Askp_array >= self.allQuoteData .askPrice1.values[i]
+                bidp_array = bidp_array[bid_pos_ind]
+                Askp_array = Askp_array[ask_pos_ind]
+                bidv_array = bidv_array[bid_pos_ind]
+                Askv_array = Askv_array[ask_pos_ind]
+            for bp, ap, bv, av in zip(bp_list, ap_list, bv_list, av_list):
+                if (self.allQuoteData [bp][i] <= self.allQuoteData .bidPrice1.values[i]):
+                    if (self.allQuoteData [bp][i] not in bidp_array):
+                        bidp_array = np.append(bidp_array, self.allQuoteData [bp][i])
+                        bidv_array = np.append(bidv_array, self.allQuoteData [bv][i])
+                    else:
+                        assert (len(np.where(bidp_array == self.allQuoteData [bp][i])[0]) == 1)
+                        bidv_array[np.where(bidp_array == self.allQuoteData [bp][i])[0][0]] = self.allQuoteData [bv][i]
+
+                if (self.allQuoteData [ap][i] >= self.allQuoteData .askPrice1.values[i]):
+                    if (self.allQuoteData [ap][i] not in Askp_array):
+                        Askp_array = np.append(Askp_array, self.allQuoteData [ap][i])
+                        Askv_array = np.append(Askv_array, self.allQuoteData [av][i])
+                    else:
+                        assert (len(np.where(Askp_array == self.allQuoteData [ap][i])[0]) == 1)
+                        Askv_array[np.where(Askp_array == self.allQuoteData [ap][i])[0][0]] = self.allQuoteData [av][i]
+
+            Now_ask = np.sum(Askv_array)
+
+            Now_bid = np.sum(bidv_array)
+
+            midPriceChange = self.allQuoteData ['midp'].diff()
+
+            self.allQuoteData .loc[:, 'priceChange'] = 1
+
+
+            temp_back_ = (Now_bid - pre_bid) * - (Now_ask - pre_ask)
+
+
+            ex_ob_ask.append((Now_ask - pre_ask))
+            ex_ob_bid.append((Now_bid - pre_bid))
+
+
+        self.allQuoteData .loc[:, 'obi_bid_diff'] = ex_ob_bid
+        self.allQuoteData .loc[:, 'obi_ask_diff'] = ex_ob_ask
+        self.allQuoteData.loc[:,'obi_fil_bid'] = self.allQuoteData .loc[:, 'obi_bid_diff'] .ewm(100).mean()
+        self.allQuoteData.loc[:,'obi_fil_ask'] = self.allQuoteData .loc[:, 'obi_ask_diff'] .ewm(100).mean()
+        posPoint = (self.allQuoteData ['obi_ask_diff']<- 150 *100 )&(self.allQuoteData.loc[:,'obi_fil_bid']>100)
+        negPoint= (self.allQuoteData ['obi_bid_diff']<-150 *100 )&(self.allQuoteData.loc[:,'obi_fil_ask']>100)
+
+
+
+        signalPos = list()
+        count = 0
+        waiting_count = 0
+        spread = self.allQuoteData ['askPrice1'] - self.allQuoteData ['bidPrice1']
+        for row in zip(posPoint,negPoint,self.allQuoteData ['obi_ask_diff'],self.allQuoteData ['obi_bid_diff'],spread):
+            posP = row[0]
+            negP = row[1]
+            obi_ask = row[2]
+            obi_bid = row[3]
+            sp = row[4]
+            if posP == True:
+                count = 60
+            elif negP == True:
+                count = -60
+
+            if count > 0:
+                if obi_ask <- 300*100:
+                    waiting_count =count
+                    count = 0
+                else:
+                    count = count -(count>0)
+            elif count <0:
+                if obi_bid <-300*100:
+                    waiting_count =count
+                    count = 0
+                else:
+                    count = count +(count<0)
+
+
+            if waiting_count>0:
+                if sp<0.05:
+                    signalPos.append(1)
+                    waiting_count = 0
+                else:
+                    signalPos.append(0.5)
+                    waiting_count = waiting_count - (waiting_count>0)
+            elif waiting_count<0:
+                if sp< 0.05:
+                    signalPos.append(-1)
+                    waiting_count = 0
+                else:
+                    signalPos.append(-0.5)
+                    waiting_count = waiting_count + (waiting_count<0)
+            else:
+                signalPos.append(0)
+        self.allQuoteData.loc[:,'sig'] = signalPos
+        negativePos = self.allQuoteData.loc[:,'sig'] == -1
+        positivePos = self.allQuoteData.loc[:,'sig'] == 1
+        #pd.concat(q, 0).to_csv(outputpath + './' + tradingDay + '.csv')
+        self.allQuoteData .loc[positivePos, signal + '_' + str(window) + '_min'] = 1
+        self.allQuoteData .loc[negativePos, signal +'_' + str(window) + '_min'] = -1
+        self.allQuoteData .loc[(~positivePos) & (~negativePos), signal +'_' + str(window) + '_min'] = 0
+        # self.allQuoteData .loc[:,''] =
+        # self.allQuoteData .loc[:, 'obi' + str(window) + '_min_sum'] = self.allQuoteData .loc[:,'obi'].rolling(window * 60).sum()
+        # todo: 把几层obi当作一层看待，适合高价股？
+
+        # print out the dataframe
+        #q = self.allQuoteData
+        #q.to_csv(self.dataSavePath + './' + str(self.tradeDate.date())+ signal+' '+symbol + '.csv')
+        #print('Calculate obi here for symbol = ', symbol, 'with lbwindow = ', window)
+
+        return self.allQuoteData
+
+
+
+
+
+    
 if __name__ == '__main__':
     dataPath = '//192.168.0.145/data/stock/wind'
     ## /sh201707d/sh_20170703

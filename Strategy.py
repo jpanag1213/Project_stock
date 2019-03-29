@@ -17,7 +17,7 @@ import time
 from Utils import *
 import matplotlib.pyplot as plt
 import datetime
-
+from numba import jit
 
 class Strategy(object):
 
@@ -167,6 +167,7 @@ class Strategy(object):
         self.run()
         print(self.sts)
 
+
     def run(self):
         """
         designed to test the signal strategy result
@@ -225,6 +226,7 @@ class Strategy(object):
                             self.trade_flag.append(2)
                         elif self.currentQty < 0:
                             self.ShortClose(askPrice, self.openPrice)
+                            #self.LongOpen(askPrice)
                         elif self.currentQty == 0:
                             self.LongOpen(askPrice)
 
@@ -238,8 +240,10 @@ class Strategy(object):
                             self.trade_flag.append(-2)
                         elif self.currentQty > 0:
                             self.LongClose(bidPrice, self.openPrice)
+                            #self.ShortOpen(bidPrice)
                         elif self.currentQty == 0:
                             self.ShortOpen(bidPrice)
+
 
 
                     else:
@@ -277,7 +281,8 @@ class Strategy(object):
 
         self.quoteData.loc[:, 'cumpnl'] = cumpnlList
         self.quoteData.loc[:, 'currentQty'] = self.currentQtyList
-        print(len(cumpnlList))
+        #print(len(cumpnlList))
+        #print(len(self.trade_flag))
         self.quoteData.loc[:, 'trade_flag'] = self.trade_flag
         if self.totalTimes != 0:
             wr = self.winTimes / self.totalTimes
@@ -295,20 +300,26 @@ class Strategy(object):
         self.sts.loc[self.symbol, 'actualpnl'] = cumpnlList[-1]
 
         # df_ = pd.DataFrame([currentQtyList,record_,trade_flag])
-        self.quoteData.to_csv('./pnl.csv')
+        #self.quoteData.to_csv('./pnl.csv')
         return 0
 
     def LongOpen(self,enterPrice):
-        self.currentQty = self.currentQty + self.openQty
-        self.openPrice = enterPrice
-        self.pnl = 0
-        self.trade_flag.append(1)
+        if self.count < self.times:
+            self.currentQty = self.currentQty + self.openQty
+            self.openPrice = enterPrice
+            self.pnl = 0
+            self.trade_flag.append(1)
+        else:
+            self.trade_flag.append(np.nan)
+            ##。。。。
+            self.pnl = 0
         return 0
+
 
     def LongClose(self,exitPrice,enterPrice):
         if self.longShort == -1:
             self.trade_flag.append(4)
-        elif self.longShort == 0:
+        elif self.longShort != -1:
             self.trade_flag.append(3)
         self.pnl = (exitPrice - enterPrice - enterPrice * self.fee) * self.currentQty
         # pnl = (bidPrice - openPrice - openPrice * 0.0015)*currentQty
@@ -320,6 +331,7 @@ class Strategy(object):
         if self.pnl > 0:
             self.winTimes = self.winTimes + 1
         return 0
+
 
     def ShortOpen(self,enterPrice):
         if self.count < self.times:
@@ -333,10 +345,11 @@ class Strategy(object):
             self.pnl = 0
         return 0
 
+
     def ShortClose(self,exitPrice,enterPrice):
         if self.longShort == 1:
             self.trade_flag.append(-4)
-        elif self.longShort == 0:
+        elif self.longShort != 1:
             self.trade_flag.append(-3)
         self.pnl = -(enterPrice - exitPrice - enterPrice * self.fee) * self.currentQty
         #pnl = -(openPrice - askPrice - openPrice * 0.0015)*currentQty

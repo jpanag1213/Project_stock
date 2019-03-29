@@ -827,7 +827,7 @@ class Data(object):
 
 
         elif self.dataReadType == 'gzip':
-
+            #print(symbol)
             exchange = symbol.split('.')[1].upper()
 
             miccode = symbol.split('.')[0]

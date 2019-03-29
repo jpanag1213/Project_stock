@@ -233,8 +233,9 @@ if __name__ == '__main__':
 
     #fm_o =  [file for file in filelist_all if (file[9] == 'c')&(file[17] == 'a')]
     #fm_o =  [file for file in filelist_all if (file[9] == 't')&(file[-5] == 'z')]
-    fm_o =  [file for file in filelist_all if (file[12] == '1')]
+    fm_o =  [file for file in filelist_all if (file[8] == 'T')]
     dm_o,pnl,times,wr,trade_rate = ReadTest(fm_o)
+    '''
     ref_data = pd.read_csv(refPath + 'stock_price_mkt.csv')
     ref_data.index = ref_data.loc[:,'secucode']
     data_merge = pd.merge(dm_o,ref_data,left_index = True, right_index = True,how = 'outer')
@@ -244,6 +245,7 @@ if __name__ == '__main__':
     
         
     group_performance()
+    '''
     #month_performance()
 
     
@@ -268,7 +270,7 @@ if __name__ == '__main__':
         max_profit = max(ret,max_profit)
         max_drawdown = max(max_drawdown,max_profit - ret)
     '''
-    
+    '''
     yymmdd = list(pnl.columns)
     yymm   = list( map(lambda x: x[:6],yymmdd))
     yymmdd_df = pd.DataFrame(yymm, columns = ['yymm'])
@@ -288,6 +290,7 @@ if __name__ == '__main__':
     monthly_performance.loc[:,'days']  = days 
     np.sum(monthly_performance)
     '''
+    '''
     pnl_ =  dm_o.sort_values(by = 'pnl',ascending = False)
     hp_ = pnl_.index[1:10]
     stock_profit = (pnl.loc[hp_,:])
@@ -296,6 +299,7 @@ if __name__ == '__main__':
     for i in hp_:
         plt.plot(cum_.loc[i,:])
     
+    '''
     '''
     print(monthly_performance.cumsum())
     plt.plot(monthly_performance.loc[:,'ret'])
@@ -332,6 +336,7 @@ if __name__ == '__main__':
     
     file_Fer= [file for file in fm_o if (file[:6] == '201902')]
     dm_Fer,pnl_Fer,times_Fer,wr_Fer,trade_rate_Fer = ReadTest(file_Fer)
+    '''
     ###dm_Fer.to_csv('./'+'sh50_'+'Fer_performance.csv')
     #dm_o.to_csv('./performance_sh50.csv')
     

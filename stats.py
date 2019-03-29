@@ -18,7 +18,10 @@ import time
 from Utils import *
 import matplotlib.pyplot as plt
 import datetime
-
+from numba import jit
+from multiprocessing.dummy import Pool as mdP
+from multiprocessing.pool import Pool as mpP
+from functools import partial
 class Stats(object):
 
     def __init__(self, symbol, tradedate, quoteData,tradeData = None,futureData =None, outputpath = 'E://stats_test/'):
@@ -120,8 +123,8 @@ class Stats(object):
     def time_cut(self,symbol,closetime = ' 14:50:00'):
         quoteData = self.quoteData[symbol]
         quoteData.loc[:,'opentime'] = 0
-        quoteData.loc[datetime.datetime.strptime(str(self.tradeDate + ' 09:30:00'), '%Y%m%d %H:%M:%S'):datetime.datetime.strptime(str(self.tradeDate +closetime), '%Y%m%d %H:%M:%S'),'opentime'] = 1
-        quoteData = quoteData.loc[datetime.datetime.strptime(str(self.tradeDate + ' 09:30:00'), '%Y%m%d %H:%M:%S'):datetime.datetime.strptime(str(self.tradeDate +closetime), '%Y%m%d %H:%M:%S'),:]
+        quoteData.loc[datetime.datetime.strptime(str(self.tradeDate + ' 09:30:03'), '%Y%m%d %H:%M:%S'):datetime.datetime.strptime(str(self.tradeDate +closetime), '%Y%m%d %H:%M:%S'),'opentime'] = 1
+        quoteData = quoteData.loc[datetime.datetime.strptime(str(self.tradeDate + ' 09:30:03'), '%Y%m%d %H:%M:%S'):datetime.datetime.strptime(str(self.tradeDate +closetime), '%Y%m%d %H:%M:%S'),:]
         #stats.check_file(quoteData)
         return quoteData
 
@@ -829,6 +832,8 @@ class Stats(object):
 
         quotedata.loc[:,'bid_loc'] = bid_loc
         quotedata.loc[:,'ask_loc'] = ask_loc
+        quotedata.loc[:,'abVolume'] = tradeData.loc[:, 'abVolume']
+        quotedata.loc[:,'asVolume'] = tradeData.loc[:, 'asVolume']
 
         return quotedata
 
@@ -867,6 +872,92 @@ class Stats(object):
         #bid_loc.fillna(method='ffill', inplace=True)
         #ask_loc.fillna(method='ffill', inplace=True)
         return bid_,ask_,bid_loc,ask_loc
+
+    def point_monitor(self, symbol, point_list):
+
+        quotedata = self.quoteData[symbol]
+
+        tradeData = self.cancel_order(symbol)
+        quotedata.loc[:, 'kp'] = point_list
+        positivePos = quotedata.loc[:, 'kp'] == 1
+        negativePos = quotedata.loc[:, 'kp'] == -1
+        quotedata.loc[~positivePos & ~negativePos, 'kp'] = np.nan
+        quotedata.loc[:, 'kp'].fillna(method='ffill', inplace=True)
+        quotedata.loc[:, 'kp_diff'] = quotedata.loc[:, 'kp'].diff()
+        quotedata.loc[:, 'asVolume_cum'] = quotedata.loc[:, 'asVolume'].cumsum()
+        quotedata.loc[:, 'abVolume_cum'] = quotedata.loc[:, 'abVolume'].cumsum()
+
+        tick_count = 0
+        row_count = 0
+        last_as = quotedata.loc[:, 'asVolume_cum'].iloc[0]
+        last_ab = quotedata.loc[:, 'abVolume_cum'].iloc[0]
+        cum_as = list()
+        cum_ab = list()
+        midp_change = list()
+        last_mid = quotedata.loc[:, 'midp'].iloc[0]
+        for row in zip(quotedata.loc[:, 'asVolume_cum'], quotedata.loc[:, 'abVolume_cum'], quotedata.loc[:, 'kp_diff'],quotedata.loc[:, 'midp']):
+            ak = row[0]
+            ab = row[1]
+            kp = row[2]
+            midp = row[3]
+            if (kp != 0):
+                tick_count = 0
+                last_as = ak
+                last_ab = ab
+                last_mid = midp
+            else:
+                last_as = quotedata.loc[:, 'asVolume_cum'].iloc[row_count - tick_count]
+                last_ab = quotedata.loc[:, 'abVolume_cum'].iloc[row_count - tick_count]
+                last_mid= quotedata.loc[:, 'midp'].iloc[row_count - tick_count]
+                tick_count = tick_count+1
+
+                #print(last_as)
+            row_count = row_count + 1
+            as_change = ak - last_as
+            ab_change = ab - last_ab
+            mid_change = midp - last_mid
+            cum_as.append( ak - last_as)
+            cum_ab.append( ab - last_ab)
+            midp_change.append(mid_change)
+
+
+        quotedata.loc[:, 'midp_change'] = midp_change
+        quotedata.loc[:, 'cum_as'] = cum_as
+        quotedata.loc[:, 'cum_ab'] = cum_ab
+        quotedata.loc[:, 'ab_as'] = quotedata.loc[:, 'cum_ab'] -quotedata.loc[:, 'cum_as']
+
+        tick_count = 0
+        row_count  = 0
+        grad = 0
+        vol_cum = 0
+        pri_cum = 0
+        vm = list()
+        vs= list()
+
+        for row in zip(quotedata.loc[:, 'ab_as'],quotedata.loc[:, 'midp_change'], quotedata.loc[:, 'kp'], quotedata.loc[:, 'kp_diff']):
+            volume_change = row[0]
+            price_change  = row[1]
+            key_point     = row[2]
+            kp            = row[3]
+
+            if (kp!= 0):
+                grad = 0
+                tick_count = 0
+                vol_mean = 0
+                vol_std = 0
+            else:
+                vol_mean = quotedata.loc[:, 'midp_change'].iloc[(row_count - tick_count):row_count].mean()
+                vol_std  = quotedata.loc[:, 'midp_change'].iloc[(row_count - tick_count):row_count].std()
+                tick_count = tick_count + 1
+
+            row_count = row_count + 1
+            vm.append(vol_mean)
+            vs.append(vol_std)
+        quotedata.loc[:, 'vm'] = vm
+        quotedata.loc[:, 'vs'] = vs
+        return quotedata
+
+
 
     def temp(self):
 
@@ -941,7 +1032,7 @@ class Stats(object):
                         pre_bar_std = 0
                     #print(pre_bar_df_ewm.iloc[-1,0])
                     pre_bar = pre_bar_df_ewm.iloc[-1,0]
-                    #print(theta_bar)
+                    ##print(theta_bar)
                     #theta_bar = 0.0
                 elif ((theta_bar)- (pre_bar) )<-a*  pre_bar_std:
                     bar_label.append(-1)
@@ -989,7 +1080,163 @@ class Stats(object):
 
 
         return tradeData
+    @jit
+    def ex_ob(self,symbol):
+        quotedata = self.quoteData[symbol]
+        ap_list = ['askPrice1', 'askPrice2', 'askPrice3','askPrice4', 'askPrice5']
+        bp_list = ['bidPrice1', 'bidPrice2', 'bidPrice3', 'bidPrice4', 'bidPrice5']
 
+
+        av_list = ['askVolume1', 'askVolume2', 'askVolume3', 'askVolume4', 'askVolume5']
+        bv_list = ['bidVolume1', 'bidVolume2', 'bidVolume3', 'bidVolume4', 'bidVolume5']
+
+        ap_list_ahead = ['askPrice1', 'askPrice2', 'askPrice3','askPrice4', 'askPrice5']
+        bp_list_ahead = ['bidPrice1', 'bidPrice2', 'bidPrice3', 'bidPrice4', 'bidPrice5']
+
+        av_list_ahead = ['askVolume1', 'askVolume2', 'askVolume3', 'askVolume4', 'askVolume5']
+        bv_list_ahead = ['bidVolume1', 'bidVolume2', 'bidVolume3', 'bidVolume4', 'bidVolume5']
+        lth = len(quotedata .bidPrice1.values)
+
+
+
+        for i in range(1, lth):
+
+            if (i == 1):
+                Askp_array = np.array(())
+                Askv_array = np.array(())
+                bidp_array = np.array(())
+                bidv_array = np.array(())
+
+            pre_ask = np.sum(Askv_array)
+            pre_bid = np.sum(bidv_array)
+
+            if (i > 1):
+
+                bid_pos_ind = bidp_array <= quotedata .bidPrice1.values[i]
+                ask_pos_ind = Askp_array >= quotedata .askPrice1.values[i]
+                bidp_array = bidp_array[bid_pos_ind]
+                Askp_array = Askp_array[ask_pos_ind]
+                bidv_array = bidv_array[bid_pos_ind]
+                Askv_array = Askv_array[ask_pos_ind]
+            for bp, ap, bv, av in zip(bp_list, ap_list, bv_list, av_list):
+                if (quotedata [bp][i] <= quotedata .bidPrice1.values[i]):
+                    if (quotedata [bp][i] not in bidp_array):
+                        bidp_array = np.append(bidp_array, quotedata [bp][i])
+                        bidv_array = np.append(bidv_array, quotedata [bv][i])
+                    else:
+                        assert (len(np.where(bidp_array == quotedata [bp][i])[0]) == 1)
+                        bidv_array[np.where(bidp_array == quotedata [bp][i])[0][0]] = quotedata [bv][i]
+
+                if (quotedata [ap][i] >= quotedata .askPrice1.values[i]):
+                    if (quotedata [ap][i] not in Askp_array):
+                        Askp_array = np.append(Askp_array, quotedata [ap][i])
+                        Askv_array = np.append(Askv_array, quotedata [av][i])
+                    else:
+                        assert (len(np.where(Askp_array == quotedata [ap][i])[0]) == 1)
+                        Askv_array[np.where(Askp_array == quotedata [ap][i])[0][0]] = quotedata [av][i]
+
+            Now_ask = np.sum(Askv_array,dtype= np.int64)
+
+            Now_bid = np.sum(bidv_array,dtype= np.int64)
+
+
+
+
+
+        return 0
+
+
+    def price_concat(self,price_ask,price_bid):
+        ask_column = price_ask.columns
+        bid_column = price_bid.columns
+        price_list = list()
+        price_ = list()
+        for column in zip(ask_column,bid_column):
+            ask = column[0]
+            bid = column[1]
+            price_list.append (pd.Series(price_ask.loc[:,ask]).unique())
+            price_list.append(pd.Series(price_bid.loc[:,bid]).unique())
+            price_.append(list(price_ask.loc[:,ask]))
+            price_.append(list(price_bid.loc[:,bid]))
+
+        price_concat = [x for j in price_ for x in j]
+        price_ = pd.DataFrame(pd.Series(price_concat).unique(),columns=['today_price'])
+
+        return price_
+
+
+    def price_volume_fun(self,symbol):
+        quotedata = self.quoteData[symbol]
+        quotedata = quotedata[~quotedata.index.duplicated(keep='first')]
+        #print(quotedata.index.duplicated(keep='first'))
+        price_ask, volume_ask, price_bid, volume_bid = self.quote_cut(quotedata)
+
+        ## price_today 当日的所有的价格序列。
+        price_today = self.price_concat(price_ask, price_bid)
+        len_column = len(price_today)
+        len_time = len(quotedata.index)
+        #print(list(quotedata.index))
+        volume_matrix = pd.DataFrame(np.zeros([len_time,len_column]),index= list(quotedata.index))
+        #print((price_today).loc[:,'today_price'])
+        volume_matrix.columns =(price_today).loc[:,'today_price']
+        print(len(list(quotedata.index)))
+        count = 0
+        #pool = Pool(4)
+        #partial_run = partial(self.volume_loading, volume_matrix=volume_matrix, price_ask=price_ask, price_bid=price_bid,
+        #                      volume_ask=volume_ask, volume_bid=volume_bid)
+
+        zip_list = zip(volume_matrix.iterrows(),price_ask.iterrows(),price_bid.iterrows(),volume_ask.iterrows(),volume_bid.iterrows())
+
+        pool = mdP(4)
+        test =pool.map(self.volume_loading, zip_list)
+
+        pool.close()
+        pool.join()
+        return pd.DataFrame(test)
+
+
+    def volume_loading(self,row):
+        x = row[0][1]
+        y = x.sort_index()
+
+        pa = row[1][1]
+        pb = row[2][1]
+        va = row[3][1]
+        vb = row[4][1]
+        for num  in range(10):
+            price_a = float(list(pa)[num])
+            price_b =float(list(pb)[num])
+            volume_a = int(list(va)[num])
+            volume_b = int(list(vb)[num])
+            #print((list(pa)))
+            #print(num)
+            #print(x)
+            #print((x))
+
+            y[price_a] = volume_a
+            y[price_b] = -volume_b
+            #print(x[price_a])
+            #print(price_a)
+
+        #print(sum(y))
+        #print(price_a)
+        #self.check_file(pd.DataFrame(y),symbol ='111')
+        return y
+
+
+
+
+    def run(self,symbol):
+        print(symbol)
+        #quotedata = stats.zaopan_stats(symbol)
+        #stats.cancel_order(symbol)
+        #stats.price_filter()
+
+        price_situation = self.price_volume_fun(symbol)
+
+        #price_situation = stats.high_obi(symbol,' 14:55:00')
+        self.check_file(price_situation,symbol = symbol)
+        return 0
 if __name__ == '__main__':
     """
     test the class
@@ -1001,19 +1248,18 @@ if __name__ == '__main__':
     symbols_path  = 'D:/SignalTest/SignalTest/ref_data/sh50.csv'
     symbol_list = pd.read_csv(symbols_path)
 
-    symbols = ['002714.SZ']
-
+    symbols = symbol_list.loc[:,'secucode']
+    print(symbols)
 
     data = Data.Data(dataPath,symbols, tradeDate,'' ,dataReadType= 'gzip', RAWDATA = 'True')
     stats   = Stats(symbols,tradeDate,data.quoteData,data.tradeData)
     #print(data.tradeData[symbols[0]])
+    t1 = time.clock()
     q = pd.DataFrame()
-    for symbol in symbols:
-        print(symbol)
-        #quotedata = stats.zaopan_stats(symbol)
-        #stats.cancel_order(symbol)
-        #stats.price_filter()
-        price_situation = stats.high_obi(symbol)
-        #price_situation = stats.high_obi(symbol,' 14:55:00')
-        stats.check_file(price_situation)
+    multi_pool = mpP(1)
+    multi_pool.map(stats.run,symbols)
+    multi_pool.close()
+    multi_pool.join()
+    t2 = time.clock()
+    print(t2 - t1)
     print('Test end')

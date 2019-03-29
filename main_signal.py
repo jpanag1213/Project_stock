@@ -16,17 +16,34 @@ import os
 import configparser
 from Utils import *
 import Strategy
-
+from multiprocessing.pool import Pool
+import multiprocessing
 import time
+from functools import partial
 def run(configfile):
 
     # dataPath = 'E:/data/stock/wind'
     # symbols = ['000001.SZ']
     # exchange = symbol.split('.')[1].lower()
     symbols, dataPath, dataReadType, tradingDays, outputpath, signal, lbwindow, lawindow,paraset,Asset,Fee,Name= ConfigReader(configfile)
-    print(tradingDays)
+    #print(tradingDays)
+
+    partial_run = partial(strategy_run, symbols=symbols, dataPath=dataPath, dataReadType=dataReadType,
+                          outputpath=outputpath, signal=signal, lbwindow=lbwindow, lawindow=lawindow, paraset=paraset,
+                          Asset=Asset, Fee=Fee, Name=Name)
+    print(list(tradingDays))
+    pool = Pool(6)
+    results = pool.map(partial_run, list(tradingDays))
+    pool.close()
+    pool.join()
+    return 0
+
+def strategy_run(tradingDays,symbols, dataPath, dataReadType,  outputpath, signal, lbwindow, lawindow,paraset,Asset,Fee,Name):
+
     stats_ = list()
-    for tradingDay in tradingDays:
+
+    for tradingDay in [(tradingDays)]:
+        #print('hapi' + str(list(tradingDays)))
         #print(tradingDay)
         tradingDay = tradingDay.replace('-','')
         print('Processing tradingday = ', tradingDay)
@@ -70,7 +87,7 @@ def run(configfile):
         #print(len(stsDf))
         if len(stsDf) > 0:
             ##保证至少有1
-            print(tradingDay)
+            #print(tradingDay)
             pd.concat(stsDf,0).to_csv(outputpath+'./' + tradingDay +Name+ '.csv')
             pd.concat(strategyResult,0).to_csv('./strategy/' + tradingDay +Name+ '.csv')
     return 0
@@ -211,6 +228,7 @@ if __name__ == '__main__':
     # CalculatreHisData('./configs/signal_test.txt')
 
     t1 =  time.clock()
+
     #run('./configs/signal_test.txt')
     ##feature _test
     run('./configs/signal_test_ic.txt')
