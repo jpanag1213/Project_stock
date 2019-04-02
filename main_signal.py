@@ -32,7 +32,7 @@ def run(configfile):
                           outputpath=outputpath, signal=signal, lbwindow=lbwindow, lawindow=lawindow, paraset=paraset,
                           Asset=Asset, Fee=Fee, Name=Name)
     print(list(tradingDays))
-    pool = Pool(6)
+    pool = Pool(4)
     results = pool.map(partial_run, list(tradingDays))
     pool.close()
     pool.join()

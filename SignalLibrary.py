@@ -23,6 +23,7 @@ class SignalLibrary(object):
 
     def __init__(self, symbol, quoteData,signal,tradeData = None,window = None, outputpath = 'E://stats_test/'):
         self.symbol    = symbol
+        quoteData = quoteData[~quoteData.index.duplicated(keep='first')]
         self.allQuoteData = quoteData
         self.outputpath = outputpath
         self.tradeData =  tradeData
@@ -616,6 +617,19 @@ class SignalLibrary(object):
         print('Calculate obi here for symbol = ', symbol, 'with lbwindow = ', window)
         return  self.allQuoteData
 
+
+    def ex_ob_test(self):
+        symbol = self.symbol
+        signal = self.signal
+        window = self.window
+        self.allQuoteData = self.Stats.price_volume_fun(symbol)
+        negativePos = (self.allQuoteData.loc[:, 'posChange']>200000)
+        positivePos =  (self.allQuoteData.loc[:, 'negChange']<-200000)
+
+        self.allQuoteData .loc[positivePos, signal + '_' + str(window) + '_min'] = 1
+        self.allQuoteData .loc[negativePos, signal +'_' + str(window) + '_min'] = -1
+        self.allQuoteData .loc[(~positivePos) & (~negativePos), signal +'_' + str(window) + '_min'] = 0
+        return self.allQuoteData
     def ex_ob(self):
         window = self.window
         signal = self.signal

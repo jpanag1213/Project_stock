@@ -588,7 +588,8 @@ class SignalTester(object):
             timePos = pd.Index(data.index).get_loc(itime)
             #if isinstance(timePos,np.int64) is False:
 
-            if isinstance(timePos,np.int64) is False:
+            if isinstance(timePos,np.int) is False:
+                print(timePos)
                 timePos = timePos.stop
 
             if timePos > (data.shape[0] - laWindow):  # should pass the laWindow to here

@@ -134,6 +134,7 @@ class Stats(object):
         price_column_bid= list()
         volunme_column_ask = list()
         volunme_column_bid = list()
+
         for Nos in range(1,num+1):
             price_column_ask.append('askPrice'+ str(Nos))
             volunme_column_ask.append('askVolume' + str(Nos))
@@ -703,7 +704,8 @@ class Stats(object):
         return df
 
     def large_order(self,symbol,price = 5.9, closetime=' 14:50:00'):
-
+        ###20190402 
+        ##
         window = 50
         quotedata = stats.time_cut(symbol,closetime=closetime )
         Price_form = dict()
@@ -757,6 +759,10 @@ class Stats(object):
 
 
     def tradeorder(self,symbol,quotedata,price = 6.25):
+        ###tradeorder
+        ###输入价格 ，返回quotedata tick的间隔下以price交易的volume
+
+
         tradeData = self.tradeData[symbol]
 
         #print(tradeData.columns)
@@ -778,16 +784,12 @@ class Stats(object):
             return tradeData_
 
 
-
-    def total_price(self,symbol):
-        quotedata = stats.time_cut(symbol,closetime = closetime)
-        price_ask,volume_ask,price_bid,volume_bid = stats.quote_cut(quotedata)
-        #temp = pd.Series(price_ask).value_count()
-        price_list = (pd.Series(price_bid.loc[:,'bidPrice1']).unique())
-
-        return price_list
-
     def high_obi(self,symbol):
+        ###large_order_count
+        ###用于统计大于某个阈值large_margin_buy(ask volume)/large_margin_sell(bid volume)的最小/大价格
+        ###num ：默认统计档数
+        ###
+        ###待优化效率
         quotedata = self.quoteData[symbol]
         tradeData = self.cancel_order(symbol)
         tradeData.loc[:, 'cum_buy']  = tradeData.loc[:, 'abVolume'].rolling(10).sum()
@@ -806,11 +808,6 @@ class Stats(object):
 
         quotedata.loc[:,'large_bid'] =  volume_bid
         quotedata.loc[:,'large_ask'] = volume_ask
-
-
-
-
-
 
         #quotedata.loc[large_ask,'large_ask'] =  quotedata.loc[large_ask,'askPrice1']
         #quotedata.loc[:,'large_bid'].fillna(method='ffill', inplace=True)
@@ -838,6 +835,11 @@ class Stats(object):
         return quotedata
 
     def large_order_count(self,quotedata,large_margin_buy,large_margin_sell,num = 10):
+        ###large_order_count
+        ###用于统计大于某个阈值large_margin_buy(ask volume)/large_margin_sell(bid volume)的最小/大价格
+        ###num ：默认统计档数
+        ###
+        ###待优化效率
         price_ask, volume_ask, price_bid, volume_bid = self.quote_cut(quotedata)
         bid_ = (volume_bid).apply(lambda  x : x - np.asarray(large_margin_sell))> 0
         bid_ = pd.DataFrame(bid_,dtype= int)
@@ -874,6 +876,8 @@ class Stats(object):
         return bid_,ask_,bid_loc,ask_loc
 
     def point_monitor(self, symbol, point_list):
+        ## point_monitor
+        ## 主要是连接过滤后的序列化处理 类似于分钟数据采样后的策略。
 
         quotedata = self.quoteData[symbol]
 
@@ -959,32 +963,9 @@ class Stats(object):
 
 
 
-    def temp(self):
-
-        price_list = stats.total_price(symbol, closetime=' 14:57:00')
-        price_rate_list = list()
-        price_abs = list()
-        price_sum = list()
-        # price_list = [6.69]
-        for price in price_list:
-            # print(price)
-            price_situation = stats.large_order(symbol, price, closetime=' 14:57:00')
-            price_situation.loc[price_situation.loc[:, 'location'] == 0, 'add_cancel_abs'] = np.nan
-            price_situation.loc[price_situation.loc[:, 'location'] == 0, 'add_cancel'] = np.nan
-            price_rate = (price_situation.loc[:, 'add_cancel_abs'].mean() / (
-                price_situation.loc[:, 'add_cancel_abs'].std()))
-            price_rate_list.append(price_rate)
-            price_abs.append(list(price_situation.loc[:, 'order'])[-1])
-            price_sum.append(list(price_situation.loc[:, 'location'])[-1])
-
-        q.loc[:, 'price'] = price_list
-        q.loc[:, 'price_rate'] = price_rate_list
-        q.loc[:, 'price_abs'] = price_abs
-        q.loc[:, 'price_sum'] = price_sum
-        stats.check_file(price_situation)
-        return 0
-
     def volume_imbalance_bar(self,symbol):
+        ### vol imbalance bar
+        ### 采样的一种方式
         #tradeData = self.tradeData
         T = 50
         a = 1
@@ -1069,6 +1050,8 @@ class Stats(object):
         return trade_list
 
     def response_fun(self,symbol):
+
+        ##价格响应函数 待补充
         tradeData = self.cancel_order(symbol)
         #print(tradeData)
         tradeData.loc[:,'abPrice'].fillna(method='ffill', inplace=True)
@@ -1080,70 +1063,7 @@ class Stats(object):
 
 
         return tradeData
-    @jit
-    def ex_ob(self,symbol):
-        quotedata = self.quoteData[symbol]
-        ap_list = ['askPrice1', 'askPrice2', 'askPrice3','askPrice4', 'askPrice5']
-        bp_list = ['bidPrice1', 'bidPrice2', 'bidPrice3', 'bidPrice4', 'bidPrice5']
 
-
-        av_list = ['askVolume1', 'askVolume2', 'askVolume3', 'askVolume4', 'askVolume5']
-        bv_list = ['bidVolume1', 'bidVolume2', 'bidVolume3', 'bidVolume4', 'bidVolume5']
-
-        ap_list_ahead = ['askPrice1', 'askPrice2', 'askPrice3','askPrice4', 'askPrice5']
-        bp_list_ahead = ['bidPrice1', 'bidPrice2', 'bidPrice3', 'bidPrice4', 'bidPrice5']
-
-        av_list_ahead = ['askVolume1', 'askVolume2', 'askVolume3', 'askVolume4', 'askVolume5']
-        bv_list_ahead = ['bidVolume1', 'bidVolume2', 'bidVolume3', 'bidVolume4', 'bidVolume5']
-        lth = len(quotedata .bidPrice1.values)
-
-
-
-        for i in range(1, lth):
-
-            if (i == 1):
-                Askp_array = np.array(())
-                Askv_array = np.array(())
-                bidp_array = np.array(())
-                bidv_array = np.array(())
-
-            pre_ask = np.sum(Askv_array)
-            pre_bid = np.sum(bidv_array)
-
-            if (i > 1):
-
-                bid_pos_ind = bidp_array <= quotedata .bidPrice1.values[i]
-                ask_pos_ind = Askp_array >= quotedata .askPrice1.values[i]
-                bidp_array = bidp_array[bid_pos_ind]
-                Askp_array = Askp_array[ask_pos_ind]
-                bidv_array = bidv_array[bid_pos_ind]
-                Askv_array = Askv_array[ask_pos_ind]
-            for bp, ap, bv, av in zip(bp_list, ap_list, bv_list, av_list):
-                if (quotedata [bp][i] <= quotedata .bidPrice1.values[i]):
-                    if (quotedata [bp][i] not in bidp_array):
-                        bidp_array = np.append(bidp_array, quotedata [bp][i])
-                        bidv_array = np.append(bidv_array, quotedata [bv][i])
-                    else:
-                        assert (len(np.where(bidp_array == quotedata [bp][i])[0]) == 1)
-                        bidv_array[np.where(bidp_array == quotedata [bp][i])[0][0]] = quotedata [bv][i]
-
-                if (quotedata [ap][i] >= quotedata .askPrice1.values[i]):
-                    if (quotedata [ap][i] not in Askp_array):
-                        Askp_array = np.append(Askp_array, quotedata [ap][i])
-                        Askv_array = np.append(Askv_array, quotedata [av][i])
-                    else:
-                        assert (len(np.where(Askp_array == quotedata [ap][i])[0]) == 1)
-                        Askv_array[np.where(Askp_array == quotedata [ap][i])[0][0]] = quotedata [av][i]
-
-            Now_ask = np.sum(Askv_array,dtype= np.int64)
-
-            Now_bid = np.sum(bidv_array,dtype= np.int64)
-
-
-
-
-
-        return 0
 
 
     def price_concat(self,price_ask,price_bid):
@@ -1172,70 +1092,111 @@ class Stats(object):
         price_ask, volume_ask, price_bid, volume_bid = self.quote_cut(quotedata)
 
         ## price_today 当日的所有的价格序列。
-        price_today = self.price_concat(price_ask, price_bid)
-        len_column = len(price_today)
         len_time = len(quotedata.index)
-        #print(list(quotedata.index))
-        volume_matrix = pd.DataFrame(np.zeros([len_time,len_column]),index= list(quotedata.index))
-        #print((price_today).loc[:,'today_price'])
-        volume_matrix.columns =(price_today).loc[:,'today_price']
-        print(len(list(quotedata.index)))
-        count = 0
-        #pool = Pool(4)
-        #partial_run = partial(self.volume_loading, volume_matrix=volume_matrix, price_ask=price_ask, price_bid=price_bid,
-        #                      volume_ask=volume_ask, volume_bid=volume_bid)
 
-        zip_list = zip(volume_matrix.iterrows(),price_ask.iterrows(),price_bid.iterrows(),volume_ask.iterrows(),volume_bid.iterrows())
+        count = 0
+
+        dict_ = [dict() for i in range(len_time) ]
+        volume_ask.columns = price_ask.columns
+        volume_bid.columns = price_bid.columns
+        dict_ask = self.dict_merge(price_ask.to_dict('index'),volume_ask.to_dict('index'))
+        dict_bid = self.dict_merge(price_bid.to_dict('index'),volume_bid.to_dict('index'))
+
 
         pool = mdP(4)
+        zip_list = zip(dict_,dict_ask.items(), dict_bid.items())
+
         test =pool.map(self.volume_loading, zip_list)
 
         pool.close()
         pool.join()
-        return pd.DataFrame(test)
 
+        test = pd.DataFrame(test,index = price_ask.index)
+
+        test.fillna(method = 'ffill',inplace = True)
+        order_change = test.diff()
+
+        quotedata.loc[:,'posChange'] = (order_change*((order_change> 0 ).astype(int))).sum(axis = 1)
+        quotedata.loc[:,'negChange'] = (order_change*((order_change<0).astype(int))).sum(axis = 1)
+
+        quotedata.loc[:,'tradeVol']  = quotedata.loc[:,'tradeVolume'].diff()
+        #quotedata.loc[:,'midp2'] = (quotedata.loc[:,'askPrice1']*quotedata.loc[:,'bidVolume1'] +quotedata.loc[:,'bidPrice1']*quotedata.loc[:,'askVolume1'])/(quotedata.loc[:,'bidVolume1']+quotedata.loc[:,'askVolume1'])
+        #quotedata.loc[:,'price_change'] = quotedata.loc[:,'midp'].diff()
+        quotedata.loc[:, 'TOTALchange'] = (quotedata.loc[:,'posChange'] + quotedata.loc[:,'negChange'])
+        #quotedata.loc[:, 'TC_rate'] = quotedata.loc[:,'tradeVol'] /(quotedata.loc[:,'tradeVol']+ quotedata.loc[:, 'TOTALchange']  )
+        quotedata.loc[:, 'abs_change'] =( abs(quotedata.loc[:,'posChange']) + abs(quotedata.loc[:,'negChange']))
+
+        #quotedata.loc[:, 'consistence_20'] = quotedata.loc[:, 'TOTALchange'].rolling(100).sum() / quotedata.loc[:, 'abs_change'].rolling(100).sum()
+        quotedata.loc[:, 'consistence'] = quotedata.loc[:, 'TOTALchange'].rolling(20).sum() / quotedata.loc[:, 'abs_change'].rolling(20).sum()
+        quotedata.loc[:,'consistence_mean'] = quotedata.loc[:, 'consistence'].rolling(20).mean()
+        quotedata.loc[:,'consistence_std'] = quotedata.loc[:, 'consistence'].rolling(20).std()
+        posMark =(quotedata.loc[:, 'consistence']> quotedata.loc[:,'consistence_std']+quotedata.loc[:,'consistence_std'])&(
+                quotedata.loc[:, 'consistence'].shift(1) < quotedata.loc[:, 'consistence_std'].shift(1) + quotedata.loc[:,'consistence_std'].shift(1)
+        )
+        negMark =(quotedata.loc[:, 'consistence']< quotedata.loc[:,'consistence_std']-quotedata.loc[:,'consistence_std'])&(
+                quotedata.loc[:, 'consistence'].shift(1) > quotedata.loc[:, 'consistence_std'].shift(1) - quotedata.loc[:,'consistence_std'].shift(1)
+        )
+        quotedata.loc[posMark, 'marker'] = 1
+        quotedata.loc[negMark, 'marker'] = -1
+        quotedata.loc[(~posMark) & (~negMark), 'marker'] =0
+        #quotedata.loc[:, 'consistence_diff'] =  quotedata.loc[:, 'consistence_5'] - quotedata.loc[:, 'consistence_20']
+
+        return quotedata
+
+    def dict_merge(self,dict1,dict2):
+        for k in dict1.keys():
+
+            if k in dict2:
+                temp = dict()
+
+                for i in dict1[k].keys():
+                    temp[(dict1[k][i])] = dict2[k][i]
+                dict1[k] = temp
+        return dict1
 
     def volume_loading(self,row):
-        x = row[0][1]
-        y = x.sort_index()
+        dict_y = row[0]
+        dict_ask = row[1][1]
+        dict_bid = row[2][1]
+        bid_nonzero = [k for k in dict_bid.keys() if k >0]
+        ask_nonzero = [k for k in dict_ask.keys() if k >0]
 
-        pa = row[1][1]
-        pb = row[2][1]
-        va = row[3][1]
-        vb = row[4][1]
-        for num  in range(10):
-            price_a = float(list(pa)[num])
-            price_b =float(list(pb)[num])
-            volume_a = int(list(va)[num])
-            volume_b = int(list(vb)[num])
-            #print((list(pa)))
-            #print(num)
-            #print(x)
-            #print((x))
+        if len(bid_nonzero)>0:
+            lower_bound = min(bid_nonzero)
+            upper_bound = max(ask_nonzero)
 
-            y[price_a] = volume_a
-            y[price_b] = -volume_b
-            #print(x[price_a])
-            #print(price_a)
+            price_range = np.linspace(lower_bound,upper_bound,num =round((upper_bound - lower_bound)/0.01) + 1).round(2)
 
-        #print(sum(y))
-        #print(price_a)
-        #self.check_file(pd.DataFrame(y),symbol ='111')
-        return y
+            for price in price_range:
+                if price in dict_ask.keys():
+                    dict_y[price] = dict_ask[price]
+                elif price in dict_bid.keys():
+                    dict_y[price] = - dict_bid[price]
+                else:
+                    dict_y[price] = 0
+            else:
+                dict_y[0] = 0
+        return dict_y
 
 
 
 
     def run(self,symbol):
         print(symbol)
+        t1 = time.time()
         #quotedata = stats.zaopan_stats(symbol)
         #stats.cancel_order(symbol)
         #stats.price_filter()
 
         price_situation = self.price_volume_fun(symbol)
+        t2 = time.time()
 
+        #price_situation
         #price_situation = stats.high_obi(symbol,' 14:55:00')
         self.check_file(price_situation,symbol = symbol)
+        t3 = time.time()
+        print('cal time:'+str(t2-t1))
+        print('writing time:'+str(t3-t2))
         return 0
 if __name__ == '__main__':
     """
@@ -1244,22 +1205,30 @@ if __name__ == '__main__':
     # data = Data('E:/personalfiles/to_zhixiong/to_zhixiong/level2_data_with_factor_added','600030.SH','20170516')
     dataPath = '//192.168.0.145/data/stock/wind'
     ## /sh201707d/sh_20170703
-    tradeDate = '20190321'
+    t1 = time.time()
+    tradeDate = '20190401'
     symbols_path  = 'D:/SignalTest/SignalTest/ref_data/sh50.csv'
     symbol_list = pd.read_csv(symbols_path)
 
     symbols = symbol_list.loc[:,'secucode']
     print(symbols)
-
+    symbols = ['601298.SH']
     data = Data.Data(dataPath,symbols, tradeDate,'' ,dataReadType= 'gzip', RAWDATA = 'True')
-    stats   = Stats(symbols,tradeDate,data.quoteData,data.tradeData)
+    stats   = Stats(symbols,tradeDate,data.quoteData)
     #print(data.tradeData[symbols[0]])
-    t1 = time.clock()
+    t2 = time.time()
+    '''
     q = pd.DataFrame()
-    multi_pool = mpP(1)
+    multi_pool = mpP(4)
     multi_pool.map(stats.run,symbols)
     multi_pool.close()
     multi_pool.join()
-    t2 = time.clock()
-    print(t2 - t1)
+    '''
+
+    stats.run(symbols[0])
+    t3 = time.time()
+    print('total:' + str(t3 - t2))
+    print('readData_time:' + str(t2 - t1))
+    #
+
     print('Test end')

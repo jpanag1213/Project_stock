@@ -13,11 +13,11 @@ name = TEST2
 
 
 [Signal]
-signal =obi_org
+signal =ex_ob_test
 lbwindow = 20
-lawindow =100
+lawindow =2000
 startDate = 2019-03-01
-endDate = 2019-03-30
+endDate = 2019-04-01
 closeType = fixwindow
 stopWinRatio = 0.01
 paraset  = 20-4-1
