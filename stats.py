@@ -1220,41 +1220,7 @@ class Stats(object):
 
 
 
-    def plotly_Plot(self,quotedata):
-        t1 = time.time()
 
-        fig = plotly.tools.make_subplots(rows=2, cols=1, print_grid=True, shared_xaxes=True)
-
-        ## 单独plot quotedata的情况下
-
-        quotedata.loc[:,'buypoint'] = quotedata.loc[:,'marker'] == 1
-        quotedata.loc[quotedata.loc[:, 'buypoint'] ==0, 'buypoint'] = np.nan
-        quotedata.loc[:,'sellpoint'] = quotedata.loc[:,'marker'] == -1
-        quotedata.loc[quotedata.loc[:, 'sellpoint'] == 0, 'sellpoint'] = np.nan
-        plot_column = ['consistence_mean','midp','buypoint','sellpoint']
-        midp = quotedata.loc[:,'midp']
-        subplot_plt = [2,1,1,1]
-        mode_column = ['','','triangle-down','triangle-up']
-        for plot_pair in zip(plot_column,subplot_plt,mode_column):
-            column_name = plot_pair[0]
-
-            subplot_loc = plot_pair[1]
-            mode = plot_pair[2]
-            y_data = (quotedata.loc[:, column_name])
-            if mode == '':
-                mode = 'lines'
-                trace = go.Scatter(x = list(quotedata.loc[:,'exchangeTime']), y=list(y_data),name = column_name, mode = mode)
-            else:
-                trace = go.Scatter( x=list(quotedata.loc[:,'exchangeTime']),y =list(y_data.iloc[:] * midp),name = column_name, mode = 'markers',marker= dict( size = 7,symbol =mode))
-
-
-            fig.append_trace(trace,subplot_loc,1)
-
-        fig.layout
-        plotly.offline.plot(fig,filename= 'C:/Users/pan/Desktop/test_plotly.html',image= 'png',auto_open=False)
-        t2 = time.time()
-        print('printTime: %d'%(t2-t1))
-        return 0
     def run(self,symbol):
         print(symbol)
         t1 = time.time()
