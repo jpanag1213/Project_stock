@@ -124,8 +124,8 @@ def group_performance():
     计算价格分组、市值分组的绩效。
     
     '''
-    high_price = data_merge.loc[:,'price']> 20
-    low_price = data_merge.loc[:,'price']< 8
+    high_price = data_merge.loc[:,'price']>8
+    low_price = data_merge.loc[:,'price']<4
     h = data_merge.loc[high_price,'pnl']
     l = data_merge.loc[low_price,'pnl']
     m = data_merge.loc[(~high_price) & (~low_price),'pnl']
@@ -133,7 +133,7 @@ def group_performance():
     print('price < 20,>8,pnl:'+str(np.mean(m)))
     print('price <8     ,pnl:'+str(np.mean(l)))
     
-
+    '''
     data_merge.loc[:,'mkt']  =np.log(data_merge.loc[:,'mkt'])
     per_75 = np.percentile( data_merge.loc[:,'mkt'] ,75)
     per_25 = np.percentile( data_merge.loc[:,'mkt'] ,25)
@@ -145,7 +145,7 @@ def group_performance():
     print('mkt > 75%    ,pnl:'+str(np.mean(h)))
     print('mkt < 75,>25 ,pnl:'+str(np.mean(m)))
     print('mkt < 25     ,pnl:'+str(np.mean(l)))
-
+    '''
 
 
        
@@ -253,12 +253,13 @@ if __name__ == '__main__':
     
     avg_pnl_cum = avg_pnl.cumsum()
     avg_pnl_cum = pnl.cumsum(axis =1 )
-    
+    '''
     for symbol in list(avg_pnl_cum.index):
         plt.figure()
         plt.plot(avg_pnl_cum.loc[symbol,:])
         plt.savefig( './performance/'+ 'test/' +symbol + '_1.jpg')
-    
+    '''
+    #group_performance()
     #plt.plot(avg_pnl_cum)
     
     '''
@@ -309,7 +310,7 @@ if __name__ == '__main__':
     
     M1902_summary = pd.DataFrame()
     data_pnl = dict(list(pnl.groupby(yymm_dict,axis = 1)))
-    M1902_pnl= data_pnl['201902']
+    M1902_pnl= data_pnl['201903']
 
     M1902_summary.loc[:,'pnl'] = M1902_pnl. mean()
 
@@ -319,12 +320,12 @@ if __name__ == '__main__':
     
 
     data_wr = dict(list(wr.groupby(yymm_dict,axis = 1)))
-    M1902_wr= data_wr['201902']
+    M1902_wr= data_wr['201903']
 
     M1902_summary.loc[:,'wr'] =(M1902_wr* M1902_times).sum() / M1902_times.sum()
     
     data_tr = dict(list(trade_rate.groupby(yymm_dict,axis = 1)))
-    M1902_trade_rate = data_tr['201902']
+    M1902_trade_rate = data_tr['201903']
     M1902_summary.loc[:,'trade_rate'] = M1902_trade_rate.mean()   
     
     M1902_summary.loc[:,'%win_stock']= (M1902_pnl > 0).sum() / M1902_pnl.shape[0]
@@ -334,7 +335,7 @@ if __name__ == '__main__':
     #M1902_summary.to_csv('./'+'sh50_'+'Fer_summary.csv')
     
     
-    file_Fer= [file for file in fm_o if (file[:6] == '201902')]
+    file_Fer= [file for file in fm_o if (file[:6] == '201903')]
     dm_Fer,pnl_Fer,times_Fer,wr_Fer,trade_rate_Fer = ReadTest(file_Fer)
     '''
     ###dm_Fer.to_csv('./'+'sh50_'+'Fer_performance.csv')

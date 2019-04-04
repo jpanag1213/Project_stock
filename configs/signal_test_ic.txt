@@ -1,6 +1,6 @@
 [DEFAULT]
 symbolfile = ./ref_data/lp_test.csv
-tradingDayFile = ./ref_data/TradingDay.csv
+tradingDayFile = ./ref_data/Tradingday.csv
 dataPathCsv = E:/data/stock/guosen_wind/test
 dataPathGzip = //192.168.0.145/data/stock/wind
 dataReadType = gzip
@@ -15,9 +15,9 @@ name = TEST2
 [Signal]
 signal =ex_ob_test
 lbwindow = 20
-lawindow =2000
-startDate = 2019-03-01
-endDate = 2019-04-01
+lawindow =300
+startDate = 2019-01-01
+endDate =  2019-04-01
 closeType = fixwindow
 stopWinRatio = 0.01
 paraset  = 20-4-1

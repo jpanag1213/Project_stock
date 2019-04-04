@@ -22,6 +22,12 @@ from numba import jit
 from multiprocessing.dummy import Pool as mdP
 from multiprocessing.pool import Pool as mpP
 from functools import partial
+
+
+### plot
+import plotly_express as px
+import plotly
+import  plotly.graph_objs as go
 class Stats(object):
 
     def __init__(self, symbol, tradedate, quoteData,tradeData = None,futureData =None, outputpath = 'E://stats_test/'):
@@ -255,7 +261,7 @@ class Stats(object):
         lastrep = list(tradeData.temp.values[:-1])
         lastrep.insert(0, 0)
         lastrep = np.asarray(lastrep)
-        tradeData_quote = pd.merge(quotedata.loc[:, ['bidPrice1', 'askPrice1','exchangeTime','tradeVolume','Turnover','tradeNos']],tradeData,  left_index=True,right_index=True, how='outer')
+        tradeData_quote = pd.merge(quotedata.loc[:, ['bidPrice1', 'askPrice1','tradeVolume','Turnover']],tradeData,  left_index=True,right_index=True, how='outer')
         tradeData_quote['bidPrice1'].fillna(method='ffill', inplace=True)
         tradeData_quote['askPrice1'].fillna(method='ffill', inplace=True)
         # tradeData_quote.to_csv(self.dataSavePath + './' + str(self.tradeDate.date()) + signal + ' ' + symbol + '.csv')
@@ -704,7 +710,7 @@ class Stats(object):
         return df
 
     def large_order(self,symbol,price = 5.9, closetime=' 14:50:00'):
-        ###20190402 
+        ###20190402
         ##
         window = 50
         quotedata = stats.time_cut(symbol,closetime=closetime )
@@ -1086,7 +1092,7 @@ class Stats(object):
 
 
     def price_volume_fun(self,symbol):
-        quotedata = self.quoteData[symbol]
+        quotedata =self.quoteData[symbol]
         quotedata = quotedata[~quotedata.index.duplicated(keep='first')]
         #print(quotedata.index.duplicated(keep='first'))
         price_ask, volume_ask, price_bid, volume_bid = self.quote_cut(quotedata)
@@ -1120,28 +1126,44 @@ class Stats(object):
         quotedata.loc[:,'negChange'] = (order_change*((order_change<0).astype(int))).sum(axis = 1)
 
         quotedata.loc[:,'tradeVol']  = quotedata.loc[:,'tradeVolume'].diff()
-        #quotedata.loc[:,'midp2'] = (quotedata.loc[:,'askPrice1']*quotedata.loc[:,'bidVolume1'] +quotedata.loc[:,'bidPrice1']*quotedata.loc[:,'askVolume1'])/(quotedata.loc[:,'bidVolume1']+quotedata.loc[:,'askVolume1'])
-        #quotedata.loc[:,'price_change'] = quotedata.loc[:,'midp'].diff()
+
         quotedata.loc[:, 'TOTALchange'] = (quotedata.loc[:,'posChange'] + quotedata.loc[:,'negChange'])
-        #quotedata.loc[:, 'TC_rate'] = quotedata.loc[:,'tradeVol'] /(quotedata.loc[:,'tradeVol']+ quotedata.loc[:, 'TOTALchange']  )
         quotedata.loc[:, 'abs_change'] =( abs(quotedata.loc[:,'posChange']) + abs(quotedata.loc[:,'negChange']))
 
-        #quotedata.loc[:, 'consistence_20'] = quotedata.loc[:, 'TOTALchange'].rolling(100).sum() / quotedata.loc[:, 'abs_change'].rolling(100).sum()
         quotedata.loc[:, 'consistence'] = quotedata.loc[:, 'TOTALchange'].rolling(20).sum() / quotedata.loc[:, 'abs_change'].rolling(20).sum()
         quotedata.loc[:,'consistence_mean'] = quotedata.loc[:, 'consistence'].rolling(20).mean()
         quotedata.loc[:,'consistence_std'] = quotedata.loc[:, 'consistence'].rolling(20).std()
-        posMark =(quotedata.loc[:, 'consistence']> quotedata.loc[:,'consistence_std']+quotedata.loc[:,'consistence_std'])&(
-                quotedata.loc[:, 'consistence'].shift(1) < quotedata.loc[:, 'consistence_std'].shift(1) + quotedata.loc[:,'consistence_std'].shift(1)
-        )
-        negMark =(quotedata.loc[:, 'consistence']< quotedata.loc[:,'consistence_std']-quotedata.loc[:,'consistence_std'])&(
-                quotedata.loc[:, 'consistence'].shift(1) > quotedata.loc[:, 'consistence_std'].shift(1) - quotedata.loc[:,'consistence_std'].shift(1)
-        )
+        posMark =(quotedata.loc[:, 'consistence']> quotedata.loc[:,'consistence_mean']+1*quotedata.loc[:,'consistence_std'])
+        negMark =(quotedata.loc[:, 'consistence']< quotedata.loc[:,'consistence_mean']-1*quotedata.loc[:,'consistence_std'])
         quotedata.loc[posMark, 'marker'] = 1
         quotedata.loc[negMark, 'marker'] = -1
         quotedata.loc[(~posMark) & (~negMark), 'marker'] =0
+        quotedata.loc[:,'change_cum'] = quotedata.loc[:, 'TOTALchange'] .cumsum()
+
+        key_point = quotedata.loc[:, 'marker'] !=0
+        quotedata_kp = quotedata.loc[key_point, :]
+        quotedata_kp.loc[:,'tc_change'] = quotedata_kp.loc[:,'change_cum'].diff()
+        quotedata_kp.loc[:,'tv_change'] = quotedata_kp.loc[:,'tradeVolume'].diff()
         #quotedata.loc[:, 'consistence_diff'] =  quotedata.loc[:, 'consistence_5'] - quotedata.loc[:, 'consistence_20']
+        para_matrix = pd.DataFrame()
+        para_matrix.loc[:,'midp'] =quotedata.loc[:,'midp']
+        para_matrix.loc[:,'posChange'] =quotedata.loc[:,'posChange']
+        para_matrix.loc[:,'negChange'] =quotedata.loc[:,'negChange']
+        para_matrix.loc[:,'price_shift_20'] = para_matrix.loc[:,'midp'].shift(20)
+        para_matrix.loc[:,'price_shift_50'] = para_matrix.loc[:,'midp'].shift(50)
+        para_matrix.loc[:,'price_diff_20'] = para_matrix.loc[:,'midp'] - para_matrix.loc[:,'price_shift_20']
+        para_matrix.loc[:,'price_diff_50'] = para_matrix.loc[:,'midp'] - para_matrix.loc[:,'price_shift_50']
+        large_change = abs(para_matrix.loc[:,'price_diff_20'])> para_matrix.loc[:,'midp'].iloc[0]*15/10000  + 0.01
+        para_matrix = para_matrix.loc[large_change,:]
+
 
         return quotedata
+
+
+
+
+
+
 
     def dict_merge(self,dict1,dict2):
         for k in dict1.keys():
@@ -1178,9 +1200,61 @@ class Stats(object):
                 dict_y[0] = 0
         return dict_y
 
+    def vol_detect(self, symbol):
+
+        ###算一算突破成功率？
+        ###
+        quotedata = self.price_volume_fun(symbol)
+        tradeData = self.cancel_order(symbol)
+        tradeData.loc[:,'up_down'] =0
+        tradeData.loc[tradeData.loc[:,'diff'] <0,'up_down'] =-1
+        tradeData.loc[tradeData.loc[:,'diff'] >0,'up_down'] =1
+        tradeData.loc[:,'up_down_mean_long'] = tradeData.loc[:,'up_down'].rolling(30).mean()
+        tradeData.loc[:,'up_down_std_long'] = tradeData.loc[:,'up_down_mean_long'].rolling(30).std()
+        tradeData.loc[:,'up_down_mean_short'] = tradeData.loc[:,'up_down'].rolling(10).mean()
+        tradeData.loc[:,'up_down_std_short'] = tradeData.loc[:,'up_down_mean_short'].rolling(10).std()
 
 
 
+        return tradeData
+
+
+
+    def plotly_Plot(self,quotedata):
+        t1 = time.time()
+
+        fig = plotly.tools.make_subplots(rows=2, cols=1, print_grid=True, shared_xaxes=True)
+
+        ## 单独plot quotedata的情况下
+
+        quotedata.loc[:,'buypoint'] = quotedata.loc[:,'marker'] == 1
+        quotedata.loc[quotedata.loc[:, 'buypoint'] ==0, 'buypoint'] = np.nan
+        quotedata.loc[:,'sellpoint'] = quotedata.loc[:,'marker'] == -1
+        quotedata.loc[quotedata.loc[:, 'sellpoint'] == 0, 'sellpoint'] = np.nan
+        plot_column = ['consistence_mean','midp','buypoint','sellpoint']
+        midp = quotedata.loc[:,'midp']
+        subplot_plt = [2,1,1,1]
+        mode_column = ['','','triangle-down','triangle-up']
+        for plot_pair in zip(plot_column,subplot_plt,mode_column):
+            column_name = plot_pair[0]
+
+            subplot_loc = plot_pair[1]
+            mode = plot_pair[2]
+            y_data = (quotedata.loc[:, column_name])
+            if mode == '':
+                mode = 'lines'
+                trace = go.Scatter(x = list(quotedata.loc[:,'exchangeTime']), y=list(y_data),name = column_name, mode = mode)
+            else:
+                trace = go.Scatter( x=list(quotedata.loc[:,'exchangeTime']),y =list(y_data.iloc[:] * midp),name = column_name, mode = 'markers',marker= dict( size = 7,symbol =mode))
+
+
+            fig.append_trace(trace,subplot_loc,1)
+
+        fig.layout
+        plotly.offline.plot(fig,filename= 'C:/Users/pan/Desktop/test_plotly.html',image= 'png',auto_open=False)
+        t2 = time.time()
+        print('printTime: %d'%(t2-t1))
+        return 0
     def run(self,symbol):
         print(symbol)
         t1 = time.time()
@@ -1188,12 +1262,13 @@ class Stats(object):
         #stats.cancel_order(symbol)
         #stats.price_filter()
 
-        price_situation = self.price_volume_fun(symbol)
-        t2 = time.time()
+        price_situation =self.price_volume_fun(symbol)
 
+        t2 = time.time()
+        self.plotly_Plot(price_situation)
         #price_situation
         #price_situation = stats.high_obi(symbol,' 14:55:00')
-        self.check_file(price_situation,symbol = symbol)
+        #self.check_file(price_situation,symbol = symbol)
         t3 = time.time()
         print('cal time:'+str(t2-t1))
         print('writing time:'+str(t3-t2))
@@ -1206,15 +1281,16 @@ if __name__ == '__main__':
     dataPath = '//192.168.0.145/data/stock/wind'
     ## /sh201707d/sh_20170703
     t1 = time.time()
-    tradeDate = '20190401'
+    tradeDate = '20190115'
     symbols_path  = 'D:/SignalTest/SignalTest/ref_data/sh50.csv'
     symbol_list = pd.read_csv(symbols_path)
 
     symbols = symbol_list.loc[:,'secucode']
     print(symbols)
-    symbols = ['601298.SH']
+    symbols = ['600086.SH']
     data = Data.Data(dataPath,symbols, tradeDate,'' ,dataReadType= 'gzip', RAWDATA = 'True')
-    stats   = Stats(symbols,tradeDate,data.quoteData)
+    stats   = Stats(symbols,tradeDate,data.quoteData,data.tradeData)
+
     #print(data.tradeData[symbols[0]])
     t2 = time.time()
     '''

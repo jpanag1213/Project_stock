@@ -32,10 +32,12 @@ def run(configfile):
                           outputpath=outputpath, signal=signal, lbwindow=lbwindow, lawindow=lawindow, paraset=paraset,
                           Asset=Asset, Fee=Fee, Name=Name)
     print(list(tradingDays))
-    pool = Pool(4)
+    pool = Pool(6)
+
     results = pool.map(partial_run, list(tradingDays))
     pool.close()
     pool.join()
+
     return 0
 
 def strategy_run(tradingDays,symbols, dataPath, dataReadType,  outputpath, signal, lbwindow, lawindow,paraset,Asset,Fee,Name):
@@ -77,11 +79,12 @@ def strategy_run(tradingDays,symbols, dataPath, dataReadType,  outputpath, signa
 
             ##todo future strategy
             if Asset == 'Future':
-                strategy = Strategy.Strategy(symbol, round(1000000/quoteData['midp'].iloc[-1],-2), quoteData, signal, tradingDay,lbwindow, lawindow,60, 'lawindow',fee = Fee,outputpath = './strategy/' + tradingDay, stockType = 'low',asset = 'Future')
+                strategy = Strategy.Strategy(symbol, round(100000/quoteData['midp'].iloc[-1],-2), quoteData, signal, tradingDay,lbwindow, lawindow,10, 'lawindow',fee = Fee,outputpath = './strategy/' + tradingDay, stockType = 'low',asset = 'Future')
             else:
-                strategy = Strategy.Strategy(symbol, round(1000000/quoteData['midp'].iloc[-1],-2), quoteData, signal,tradingDay,lbwindow, lawindow, 60, 'lawindow',fee = Fee,outputpath = './strategy/' + tradingDay, stockType = 'low')
+                strategy = Strategy.Strategy(symbol, round(100000/quoteData['midp'].iloc[-1],-2), quoteData, signal,tradingDay,lbwindow, lawindow, 10, 'lawindow',fee = Fee,outputpath = './strategy/' + tradingDay, stockType = 'low')
             strategy.SummaryStrategy()
             strategy.Plot()
+            #print(strategy.sts)
             strategyResult.append(strategy.sts)
 
         #print(len(stsDf))
@@ -200,13 +203,14 @@ def ConfigReader(configFile):
     paraset = paraset.split('-')
 
     tradingDays     = pd.read_csv(tradingDayFile, index_col=0, parse_dates=True)
+
     #print(tradingDays)
     # main_future     = pd.read_csv(mainFutureFile,index_col=0,parse_dates=True)
     symbols = pd.read_csv(symbolfile,encoding='oem').loc[:,'secucode']
 
     # lastTradeDate = tradingDays.loc[tradingDays['date'] <= rundt, 'date'].iloc[-2]
     # nextTradeDate = tradingDays.loc[tradingDays['date'] >= rundt, 'date'].iloc[1]
-
+    #print(tradingDays)
     tradingDays = tradingDays.loc[(tradingDays['date'] >= startDate) & (tradingDays['date'] <= endDate), 'date']
 
     if dataReadType == 'gzip':

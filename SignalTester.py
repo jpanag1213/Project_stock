@@ -314,7 +314,7 @@ class SignalTester(object):
         logReturns = self.GetLogReturnSeries(symbol, laWindow)  # use future log reuturn to calculate the WR
         # step3 : plot the signal plots
 
-        self.PlotSignalNReturn(signal, symbol, logReturns, lbWinodw, 0, paraset)
+        #self.PlotSignalNReturn(signal, symbol, logReturns, lbWinodw, 0, paraset)
 
         # step4 : calculate the statistics
 
@@ -605,7 +605,7 @@ class SignalTester(object):
 
             # midPos = pd.Index(data.columns).get_loc('midp')
             midp = data.iloc[timePos, openPricePos]
-            print()
+            #print()
             midps = data.iloc[endPos, closePircePos]
             if side is 'buy':
                 if np.log(midps / midp) >   self.fee:

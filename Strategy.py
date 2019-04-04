@@ -24,6 +24,10 @@ class Strategy(object):
     def __init__(self, symbol, qty, quoteData, signal, tradingDay, lbwindow, lawindow, times, closeType, fee=15 / 10000,
                  outputpath='./strategy', stockType='low', asset=''):
         self.symbol = symbol
+        if np.isnan(qty):
+            print('qty is nan')
+            qty_price = quoteData.loc[:,'pre_close'].iloc[0]
+            qty = round(1000000/qty_price,-2)
         self.qty = qty
 
         self.quoteData = quoteData
@@ -41,10 +45,8 @@ class Strategy(object):
         self.fee = fee
         if self.asset == 'Future':
             self.openQty = round(self.qty / self.times / (200 / 12))
-            print(openQty)
         else:
             self.openQty = round(self.qty / self.times, -2)
-
         ### 策略初始化
         self.pnl = 0
         self.openPrice = 0
@@ -165,7 +167,7 @@ class Strategy(object):
         # else:
         #     print(self.sts)
         self.run()
-        print(self.sts)
+        #print(self.sts)
 
 
     def run(self):
@@ -197,7 +199,7 @@ class Strategy(object):
         '''
 
         # self.quoteData.to_csv('./'+self.symbol+'_test_.csv')
-
+        count_ = 0
         for row in zip(self.quoteData.loc[:, self.signal + '_' + str(self.lbwindow) + '_min'],
                        self.quoteData['bidPrice1'], self.quoteData['askPrice1'], self.quoteData['midp'],
                        self.quoteData.openstatus):
@@ -268,11 +270,12 @@ class Strategy(object):
             else:
                 self.pnl = 0
                 self.trade_flag.append(np.nan)
-
+            count_ = count_ + 1
             openpricelist.append(self.openPrice)
             bidPricelist.append(bidPrice)
             askPricelist.append(askPrice)
-
+            #print(len(self.trade_flag))
+            #print(count_)
             self.currentQtyList.append( self.currentQty)
             # currentQtyList.append(currentQty)
             cumpnlList.append(cumpnl + self.pnl + self.currentQty * (lastPrice - self.openPrice))
@@ -299,8 +302,8 @@ class Strategy(object):
         self.sts.loc[self.symbol, 'total_qty'] = self.qty
         self.sts.loc[self.symbol, 'actualpnl'] = cumpnlList[-1]
 
-        # df_ = pd.DataFrame([currentQtyList,record_,trade_flag])
-        #self.quoteData.to_csv('./pnl.csv')
+        #df_ = pd.DataFrame([currentQtyList,record_,trade_flag])
+
         return 0
 
     def LongOpen(self,enterPrice):

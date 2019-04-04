@@ -358,7 +358,7 @@ class SignalLibrary(object):
         self.allQuoteData .loc[positivePos, signal + '_' + str(lb_window) + '_min'] = 1
         self.allQuoteData .loc[negativePos, signal + '_' + str(lb_window) + '_min'] = -1
         self.allQuoteData .loc[(~positivePos) & (~negativePos), signal + '_' + str(lb_window) + '_min'] = 0
-        print(signal + '_' + str(lb_window))
+        #print(signal + '_' + str(lb_window))
         return self.allQuoteData
 
 
@@ -614,7 +614,7 @@ class SignalLibrary(object):
         # self.allQuoteData .loc[:,''] =
         # self.allQuoteData .loc[:, 'obi' + str(window) + '_min_sum'] = self.allQuoteData .loc[:,'obi'].rolling(window * 60).sum()
         # todo: 把几层obi当作一层看待，适合高价股？
-        print('Calculate obi here for symbol = ', symbol, 'with lbwindow = ', window)
+        #print('Calculate obi here for symbol = ', symbol, 'with lbwindow = ', window)
         return  self.allQuoteData
 
 
@@ -623,8 +623,8 @@ class SignalLibrary(object):
         signal = self.signal
         window = self.window
         self.allQuoteData = self.Stats.price_volume_fun(symbol)
-        negativePos = (self.allQuoteData.loc[:, 'posChange']>200000)
-        positivePos =  (self.allQuoteData.loc[:, 'negChange']<-200000)
+        negativePos = (self.allQuoteData.loc[:, 'posChange']>150000)&(self.allQuoteData.loc[:, 'marker'] == 1)
+        positivePos =  (self.allQuoteData.loc[:, 'negChange']<-150000)&(self.allQuoteData.loc[:, 'marker'] ==-1)
 
         self.allQuoteData .loc[positivePos, signal + '_' + str(window) + '_min'] = 1
         self.allQuoteData .loc[negativePos, signal +'_' + str(window) + '_min'] = -1
