@@ -28,6 +28,11 @@ class Strategy(object):
             print('qty is nan')
             qty_price = quoteData.loc[:,'pre_close'].iloc[0]
             qty = round(1000000/qty_price,-2)
+            self.pre_close = quoteData.loc[:, 'pre_close'].iloc[0]
+        else:
+            self.pre_close = quoteData.loc[:, 'pre_close'].iloc[-1]
+        if np.isnan(self.pre_close):
+            self.pre_close = quoteData.loc[:, 'pre_close'].iloc[0]
         self.qty = qty
 
         self.quoteData = quoteData
@@ -58,6 +63,8 @@ class Strategy(object):
         self.currentQtyList = list()
         self.holdTime = 0  # 用来记录持仓时长
         self.count = 0  # 记录交易次数
+        self.highprice = 0
+
 
 
         if os.path.exists(outputpath) is False:
@@ -211,6 +218,7 @@ class Strategy(object):
             askPrice = row[2]
             lastPrice = row[3]
             openstatus = row[4]
+            self.highprice = np.log(lastPrice/self.pre_close)
             if (openstatus != 0):
                 if (openstatus == 2):  ##收盘平仓
                     if self.currentQty > 0:
@@ -278,6 +286,7 @@ class Strategy(object):
             #print(count_)
             self.currentQtyList.append( self.currentQty)
             # currentQtyList.append(currentQty)
+
             cumpnlList.append(cumpnl + self.pnl + self.currentQty * (lastPrice - self.openPrice))
             if self.pnl != 0:
                 cumpnl = cumpnl + self.pnl
@@ -301,13 +310,13 @@ class Strategy(object):
 
         self.sts.loc[self.symbol, 'total_qty'] = self.qty
         self.sts.loc[self.symbol, 'actualpnl'] = cumpnlList[-1]
-
+        #self.quoteData.to_csv('./pnl11.csv')
         #df_ = pd.DataFrame([currentQtyList,record_,trade_flag])
 
         return 0
 
     def LongOpen(self,enterPrice):
-        if self.count < self.times:
+        if (self.count < self.times)&(self.highprice <0.09):
             self.currentQty = self.currentQty + self.openQty
             self.openPrice = enterPrice
             self.pnl = 0
@@ -337,7 +346,7 @@ class Strategy(object):
 
 
     def ShortOpen(self,enterPrice):
-        if self.count < self.times:
+        if (self.count < self.times)&(self.highprice >-0.09):
             self.currentQty = self.currentQty - self.openQty
             self.openPrice = enterPrice
             self.pnl = 0

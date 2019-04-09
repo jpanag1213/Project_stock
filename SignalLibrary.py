@@ -622,14 +622,48 @@ class SignalLibrary(object):
         symbol = self.symbol
         signal = self.signal
         window = self.window
-        self.allQuoteData = self.Stats.price_volume_fun(symbol)
-        negativePos = (self.allQuoteData.loc[:, 'posChange']>150000)&(self.allQuoteData.loc[:, 'marker'] == 1)
-        positivePos =  (self.allQuoteData.loc[:, 'negChange']<-150000)&(self.allQuoteData.loc[:, 'marker'] ==-1)
+        self.allQuoteData = self.Stats.PV_summary(symbol)
 
-        self.allQuoteData .loc[positivePos, signal + '_' + str(window) + '_min'] = 1
-        self.allQuoteData .loc[negativePos, signal +'_' + str(window) + '_min'] = -1
+        #negativePos = (self.allQuoteData.loc[:, 'posChange']>2*self.allQuoteData.loc[:,'bid_loc'])&(self.allQuoteData.loc[:, 'marker'] == 1)
+        #positivePos =  (self.allQuoteData.loc[:, 'negChange']<-2*self.allQuoteData.loc[:,'ask_loc'])&(self.allQuoteData.loc[:, 'marker'] ==-1)
+        negativePos =(self.allQuoteData.loc[:,'bid_loc']==0)&(self.allQuoteData.loc[:, 'marker'] == 1)& (self.allQuoteData.loc[:,'ask_loc']!=0)
+        positivePos = (self.allQuoteData.loc[:,'ask_loc']==0)&(self.allQuoteData.loc[:, 'marker'] ==-1)& (self.allQuoteData.loc[:,'bid_loc']!=0)
+        pnSignal = list()
+        count = 0
+        for row in zip(positivePos,negativePos,(self.allQuoteData.loc[:, 'obi'] )):
+            pos = row[0]
+            neg = row[1]
+            obi = row[2]
+            SIGNAL = 0
+            if pos:
+                count = 100
+            elif neg:
+                count = -100
+
+            if count > 0:
+                if 1:
+                    count = 0
+                    SIGNAL = 1
+                else:
+                    count = count - (count>0)
+                    SIGNAL = 0
+            elif count < 0:
+                if 1:
+                    count = 0
+                    SIGNAL = -1
+                else:
+                    count = count + (count<0)
+                    SIGNAL = 0
+            else:
+                SIGNAL = 0
+            pnSignal.append(SIGNAL)
+        self.allQuoteData.loc[:,signal + '_' + str(window) + '_min'] = pnSignal
+        #self.allQuoteData .loc[pPos, signal + '_' + str(window) + '_min'] = 1
+        #self.allQuoteData .loc[nPos, signal +'_' + str(window) + '_min'] = -1
         self.allQuoteData .loc[(~positivePos) & (~negativePos), signal +'_' + str(window) + '_min'] = 0
         return self.allQuoteData
+
+
     def ex_ob(self):
         window = self.window
         signal = self.signal

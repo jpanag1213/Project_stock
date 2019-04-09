@@ -235,6 +235,8 @@ if __name__ == '__main__':
     #fm_o =  [file for file in filelist_all if (file[9] == 't')&(file[-5] == 'z')]
     fm_o =  [file for file in filelist_all if (file[8] == 'T')]
     dm_o,pnl,times,wr,trade_rate = ReadTest(fm_o)
+
+    
     '''
     ref_data = pd.read_csv(refPath + 'stock_price_mkt.csv')
     ref_data.index = ref_data.loc[:,'secucode']
@@ -253,14 +255,17 @@ if __name__ == '__main__':
     
     avg_pnl_cum = avg_pnl.cumsum()
     avg_pnl_cum = pnl.cumsum(axis =1 )
-    '''
+    
+    
+    
     for symbol in list(avg_pnl_cum.index):
         plt.figure()
         plt.plot(avg_pnl_cum.loc[symbol,:])
         plt.savefig( './performance/'+ 'test/' +symbol + '_1.jpg')
-    '''
+    
     #group_performance()
     #plt.plot(avg_pnl_cum)
+    
     
     '''
     Rf = 1.55/ 100 / 252
@@ -306,26 +311,26 @@ if __name__ == '__main__':
     plt.plot(monthly_performance.loc[:,'ret'])
     
     
-    
+    t = '201904'
     
     M1902_summary = pd.DataFrame()
     data_pnl = dict(list(pnl.groupby(yymm_dict,axis = 1)))
-    M1902_pnl= data_pnl['201903']
+    M1902_pnl= data_pnl[t]
 
     M1902_summary.loc[:,'pnl'] = M1902_pnl. mean()
 
     data_times = dict(list(times.groupby(yymm_dict,axis = 1)))
-    M1902_times = data_times['201902']
+    M1902_times = data_times[t]
     M1902_summary.loc[:,'times'] = M1902_times.sum()
     
 
     data_wr = dict(list(wr.groupby(yymm_dict,axis = 1)))
-    M1902_wr= data_wr['201903']
+    M1902_wr= data_wr[t]
 
     M1902_summary.loc[:,'wr'] =(M1902_wr* M1902_times).sum() / M1902_times.sum()
     
     data_tr = dict(list(trade_rate.groupby(yymm_dict,axis = 1)))
-    M1902_trade_rate = data_tr['201903']
+    M1902_trade_rate = data_tr[t]
     M1902_summary.loc[:,'trade_rate'] = M1902_trade_rate.mean()   
     
     M1902_summary.loc[:,'%win_stock']= (M1902_pnl > 0).sum() / M1902_pnl.shape[0]
@@ -335,9 +340,13 @@ if __name__ == '__main__':
     #M1902_summary.to_csv('./'+'sh50_'+'Fer_summary.csv')
     
     
-    file_Fer= [file for file in fm_o if (file[:6] == '201903')]
+    file_Fer= [file for file in fm_o if (file[:6] == t)]
     dm_Fer,pnl_Fer,times_Fer,wr_Fer,trade_rate_Fer = ReadTest(file_Fer)
     '''
     ###dm_Fer.to_csv('./'+'sh50_'+'Fer_performance.csv')
     #dm_o.to_csv('./performance_sh50.csv')
     
+    
+    
+    #dm_Fer.to_csv('./'+'cyb_'+'march_performance.csv')
+    #dm_o.to_csv('./cyb_performance.csv')

@@ -343,7 +343,8 @@ class SignalTester(object):
 
         self.allQuoteData[symbol] = signalLibrary.getSignal()
 
-        self.allQuoteData[symbol].to_csv(self.dataSavePath+'/'+signal+'_'+str(self.tradeDate.date())+'.csv')
+        #self.allQuoteData[symbol].to_csv(self.dataSavePath+'/'+signal+'_'+str(self.tradeDate.date())+'.csv')
+        print(self.dataSavePath+'/'+signal+'_'+str(self.tradeDate.date())+'.csv')
         #print('Calculate obi here for symbol = ', symbol, 'with lbwindow = ', window)
 
 

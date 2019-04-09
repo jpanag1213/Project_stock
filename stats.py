@@ -23,11 +23,6 @@ from multiprocessing.dummy import Pool as mdP
 from multiprocessing.pool import Pool as mpP
 from functools import partial
 
-
-### plot
-import plotly_express as px
-import plotly
-import  plotly.graph_objs as go
 class Stats(object):
 
     def __init__(self, symbol, tradedate, quoteData,tradeData = None,futureData =None, outputpath = 'E://stats_test/'):
@@ -45,7 +40,6 @@ class Stats(object):
         self.outputpath = outputpath
 
         self.futureData = futureData
-        print(os.path.exists(outputpath))
         if os.path.exists(outputpath) is False:
             os.makedirs(outputpath)
         if futureData == None:
@@ -157,7 +151,7 @@ class Stats(object):
 
         return 0
 
-    def spread_w(self):
+    def spread_width(self):
         quotedata.loc[:,'bid_spread'] = quotedata.loc[:,'bidPrice1'] - quotedata.loc[:,'bidPrice10']
 
 
@@ -199,7 +193,7 @@ class Stats(object):
         return 0
 
 
-    def zaopan_stats(self,symbol):
+    def morning_session(self,symbol):
         opendata = stats.time_cut(symbol,closetime = ' 09:30:06')
 
         base_price_ask,base_volume_ask = stats.rolling_dealer(opendata,num=10,name='ask')
@@ -216,6 +210,8 @@ class Stats(object):
         return quotedata
 
     def rolling_dealer(self,quotedata,num = 10,name = 'ask',base_price = 0,base_qty = 0):
+        #统计开盘时的订单情况。
+        #计算开盘时刻，盘口之外的挂单情况。
         total_qty_name = 'total_'+name+'_qty'
         avg_price_name = 'weighted_avg_'+name+'_price'
         temp = quotedata.loc[:, avg_price_name]*quotedata.loc[:, total_qty_name] - base_price *1*base_qty/2
@@ -461,162 +457,46 @@ class Stats(object):
 
 
 
-    def price_filter(self):
-        symbol = self.symbol[0]
-        midp = self.quoteData[symbol].loc[:, 'midp']
-        quotedata = self.quoteData[symbol]
-        bid_Volume10 = (quotedata.loc[:, 'bidVolume1'] + quotedata.loc[:, 'bidVolume2'] + quotedata.loc[:,
-                                                                                          'bidVolume3']) * 1 / 10
-        ask_Volume10 = (quotedata.loc[:, 'askVolume1'] + quotedata.loc[:, 'askVolume2'] + quotedata.loc[:,
-                                                                                          'askVolume3']) * 1 / 10
-        bid_Volume10_2 = (quotedata.loc[:, 'bidVolume1'] + quotedata.loc[:, 'bidVolume2'])
-        ask_Volume10_2 = (quotedata.loc[:, 'askVolume1'] + quotedata.loc[:, 'askVolume2'])
-        bid_price = (bid_Volume10 < quotedata.loc[:, 'bidVolume1']) + 2 * (
-                    (bid_Volume10 > quotedata.loc[:, 'bidVolume1']) & (bid_Volume10 < bid_Volume10_2))
-        ask_price = (ask_Volume10 < quotedata.loc[:, 'askVolume1']) + 2 * (
-                    (ask_Volume10 > quotedata.loc[:, 'askVolume1']) & (ask_Volume10 < ask_Volume10_2))
-        quotedata.loc[:, 'bid_per10'] = quotedata.loc[:, 'bidPrice1']
-        quotedata.loc[:, 'ask_per10'] = quotedata.loc[:, 'askPrice1']
-        quotedata.loc[:, 'bid_vol10'] = quotedata.loc[:, 'bidVolume1']
-        quotedata.loc[:, 'ask_vol10'] = quotedata.loc[:, 'askVolume1']
-
-        quotedata.loc[bid_price == 2, 'bid_per10'] = quotedata.loc[bid_price == 2, 'bidPrice2']
-        quotedata.loc[bid_price == 0, 'bid_per10'] = quotedata.loc[bid_price == 0, 'bidPrice3']
-        quotedata.loc[ask_price == 2, 'ask_per10'] = quotedata.loc[ask_price == 2, 'askPrice2']
-        quotedata.loc[ask_price == 0, 'ask_per10'] = quotedata.loc[ask_price == 0, 'askPrice3']
-        quotedata.loc[quotedata.loc[:, 'ask_per10'] == 0, 'ask_per10'] = np.nan
-        quotedata.loc[quotedata.loc[:, 'bid_per10'] == 0, 'bid_per10'] = np.nan
-        quotedata.loc[bid_price == 2, 'bid_vol10'] = quotedata.loc[bid_price == 2, 'bidVolume2']
-        quotedata.loc[bid_price == 0, 'bid_vol10'] = quotedata.loc[bid_price == 0, 'bidVolume3']
-        quotedata.loc[ask_price == 2, 'ask_vol10'] = quotedata.loc[ask_price == 2, 'askVolume2']
-        quotedata.loc[ask_price == 0, 'ask_vol10'] = quotedata.loc[ask_price == 0, 'askVolume3']
-
-        midp_2 = (quotedata.loc[:, 'ask_per10'] * quotedata.loc[:, 'bid_vol10'] + quotedata.loc[:,
-                                                                                  'bid_per10'] * quotedata.loc[:,
-                                                                                                 'ask_vol10']) / (
-                             quotedata.loc[:, 'bid_vol10'] + quotedata.loc[:, 'ask_vol10'])
-        self.quoteData[symbol].loc[:, 'midp_2'] = midp_2
-        # midp = (quotedata.loc[:, 'askPrice1'] * quotedata.loc[:, 'bidVolume1'] + quotedata.loc[:, 'bidPrice1'] * quotedata.loc[:,'askVolume1']) / (quotedata.loc[:, 'bidVolume1'] + quotedata.loc[:, 'askVolume1'])
-        mean_midp = midp_2.rolling(20).mean()
-        Minute = 6
-        ewm_midp = mean_midp.ewm(6 * 20).mean()
-
-        fig, ax = plt.subplots(1, figsize=(20, 12), sharex=True)
-
-        mean_midp_ = midp.rolling(20).mean()
-        ewm_midp_ = mean_midp_.ewm(6 * 20).mean()
-
-        not_point = list()
-        kp1_point = list()
-        kp2_point = list()
-        kp_1 = 0
-        kp_2 = 0
-        id_1 = 0
-        id_2 = 0
-        count = 0
-        std_ = mean_midp.ewm(6 * 20).std()
-        # std = mean_midp.ewm(M2* T)
-        STATE_test = list()
-        kp_list = list()
-        for row in zip(ewm_midp, std_):
-            count = count + 1
-            i = row[0]
-            j = row[1]
-            if i is not np.nan:
-
-                if (kp_1 != 0) & (kp_2 != 0) & (kp_1 == kp_1) & (kp_2 == kp_2):
-
-                    kp_diff = kp_1 - kp_2
-                    if (kp_diff * (i - kp_2) < 0):
-
-                        if ((abs(i - kp_2)) > 4 * j):
-                            # print(id_2-id_1)
-                            not_point.append(i)
-                            kp_1 = kp_2
-                            kp_2 = i
-                            id_1 = id_2
-                            id_2 = count
-                            STATE_test.append(3)
-                        else:
-                            not_point.append(kp_2)
-                            STATE_test.append(2)
-                    else:
-                        kp_2 = i
-                        id_2 = count
-                        not_point.append(kp_1)
-                        STATE_test.append(1)
-
-                else:
-                    not_point.append(np.nan)
-                    kp_1 = i
-                    kp_2 = i
-                    id_1 = count
-                    id_2 = count
-                    STATE_test.append(0)
-
-                kp1_point.append(kp_1)
-                kp2_point.append(kp_2)
-
-            else:
-                not_point.append(np.nan)
-                kp1_point.append(np.nan)
-                kp2_point.append(np.nan)
-                STATE_test.append(np.nan)
-
-        self.quoteData[symbol].loc[:, 'ewm'] = ewm_midp_
-        self.quoteData[symbol].loc[:, 'filter_ewm'] = ewm_midp
-        self.quoteData[symbol].loc[:, 'not'] = not_point
-        # self.quoteData[symbol].loc[:,'kp_1'] = kp1_point
-        # self.quoteData[symbol].loc[:,'kp_2'] = kp2_point
-
-        self.quoteData[symbol].loc[:, 'std_'] = std_
-        # self.quoteData[symbol].loc[:,'std_'] = std_
-        # self.quoteData[symbol].loc[:,'state'] = STATE_test
-
-        self.quoteData[symbol].loc[:, 'upper_bound'] = self.quoteData[symbol].loc[:, 'not'] + 3 * \
-                                                          self.quoteData[symbol].loc[:, 'std_']
-        self.quoteData[symbol].loc[:, 'lower_bound'] = self.quoteData[symbol].loc[:, 'not'] - 3 * \
-                                                          self.quoteData[symbol].loc[:, 'std_']
-        # negativePos = (self.quoteData[symbol].loc[:,'ewm']> (self.quoteData[symbol].loc[:,'not'] +3*self.quoteData[symbol].loc[:,'std_']))&(self.quoteData[symbol].loc[:,'ewm'].shift(-1) <(self.quoteData[symbol].loc[:,'not'].shift(-1) + 3*self.quoteData[symbol].loc[:,'std_'].shift(-1)))
-        # negativePos = (self.quoteData[symbol].loc[:,'ewm'].shift(1) > (self.quoteData[symbol].loc[:,'not'].shift(1)  +3*self.quoteData[symbol].loc[:,'std_'].shift(1) ))&(self.quoteData[symbol].loc[:,'ewm'] <(self.quoteData[symbol].loc[:,'not'] + 3*self.quoteData[symbol].loc[:,'std_']))
-
-        positivePos = (self.quoteData[symbol].loc[:, 'ewm'].shift(1) < (
-                    self.quoteData[symbol].loc[:, 'not'].shift(1) + 3 * self.quoteData[symbol].loc[:,
-                                                                           'std_'].shift(1))) & (
-                                  self.quoteData[symbol].loc[:, 'ewm'] > (
-                                      self.quoteData[symbol].loc[:, 'not'] + 3 * self.quoteData[symbol].loc[:,
-                                                                                    'std_']))
-        # positivePos = (self.quoteData[symbol].loc[:,'ewm']< (self.quoteData[symbol].loc[:,'not'] -3*self.quoteData[symbol].loc[:,'std_']))&(self.quoteData[symbol].loc[:,'ewm'].shift(-1)>(self.quoteData[symbol].loc[:,'not'].shift(-1) - 3*self.quoteData[symbol].loc[:,'std_'].shift(-1)))
-        # positivePos = (self.quoteData[symbol].loc[:,'ewm'].shift(1) < (self.quoteData[symbol].loc[:,'not'].shift(1) -3*self.quoteData[symbol].loc[:,'std_'].shift(1) ))&(self.quoteData[symbol].loc[:,'ewm']>(self.quoteData[symbol].loc[:,'not'] - 3*self.quoteData[symbol].loc[:,'std_']))
-        negativePos = (self.quoteData[symbol].loc[:, 'ewm'].shift(1) > (
-                    self.quoteData[symbol].loc[:, 'not'].shift(1) - 3 * self.quoteData[symbol].loc[:,
-                                                                           'std_'].shift(1))) & (
-                                  self.quoteData[symbol].loc[:, 'ewm'] < (
-                                      self.quoteData[symbol].loc[:, 'not'] - 3 * self.quoteData[symbol].loc[:,
-                                                                                    'std_']))
-
-        '''
-        y_value = list(midp.iloc[:])
-        yvalue  =list(ewm_midp)
-        yvalue_3 = list(ewm_midp_)
-
-        ax.plot(yvalue,label  = '1')
-        ax.plot(y_value,label = '2')
-        ax.plot(not_point, marker='^', c='red')
-
-        #plt.savefig(self.dataSavePath + '/'+ str(self.tradeDate.date())  +symbol +signal+ '.jpg')
-        '''
-
-        quotedata = self.quoteData[symbol]
-        stats.check_file(quotedata,symbol)
-
-        return 0
 
 
     def obi_fixedprice(self,symbol):
+        '''
+        定义一个相对的量：
+        bv1 = 1
+        股 if bv1 < 主动卖量
+        意味着：盘口的量只要按1个tick内就很有可能被打掉了。  ##这个事情怎么衡量呢 或者说打掉的分布。
+        av1 = 1
+        股 if av1 < 主动买量
+        obi = log(bv / av)
+        去除obi过分大的情况
+        large_obi = abs(obi) > exp(2)(7.3
+        倍左右)
+        obi[large_obi] = 0  ##todo 这里可以修改 。这里我想可能设置的不够好。如果是0的话。也体现不了obi从-2到2变动的情况。
+        ##备选方式1 obi[large_obi] =  k * obi[large_obi] ,k<<1
+        初始化盘口量计数。last_obi
+        价格不变的情况下，计算obi_change = obi - last_obi  ##这里有个计数的方式，表示跟踪N tick的 obi的变化。
 
-        self.quoteData[symbol].loc[:, 'obi'] = np.log(self.quoteData[symbol].loc[:, 'bidVolume1']+1) - np.log(
-            self.quoteData[symbol].loc[:, 'askVolume1']+1)
+        midp变化的情况下，重置last_obi。
+        ##这里有个trick,主要的原因在于当obi信号触发的时候，薄弱的盘口不稳定。导致midp的多次变化->last_obi重复出现->last_obi不一定可靠。
+        ##不过有一点不变的是 厚单快被打掉的时候就进去了。
+        ##厚单的情况仍然需要继续统计。
+        ## 突然被打掉的情况是不清楚的。如下方的青岛港
+        '''
+        self.quoteData[symbol] = self.high_obi(symbol)
+
+
+
+        small_obi_bid = self.quoteData[symbol].loc[:, 'bidVolume1']<self.quoteData[symbol].loc[:, 'asVolume']
+        small_obi_ask = self.quoteData[symbol].loc[:, 'askVolume1']<self.quoteData[symbol].loc[:, 'abVolume']
+
+        self.quoteData[symbol].loc[small_obi_bid, 'bidVolume1'] = 1
+        self.quoteData[symbol].loc[small_obi_ask, 'askVolume1'] = 1
+        self.quoteData[symbol] .loc[:, 'obi'] = np.log(self.quoteData[symbol] .loc[:, 'bidVolume1']) - np.log(
+            self.quoteData[symbol] .loc[:, 'askVolume1'])
+        large_obi = np.abs(self.quoteData[symbol].loc[:,'obi']) > 2
+        self.quoteData[symbol].loc[large_obi, 'obi'] = 0
+        self.quoteData[symbol].loc[:, 'obi'] = np.log(self.quoteData[symbol].loc[:, 'bidVolume1']) - np.log(
+            self.quoteData[symbol].loc[:, 'askVolume1'])
         # self.quoteData[symbol].loc[:, 'obi_' + str(window) + '_min'] = self.quoteData[symbol].loc[:,
         #                                                                   'obi'].rolling(window * 60).mean()
         self.quoteData[symbol].loc[:, 'obi_' + '_min'] = self.quoteData[symbol].loc[:, 'obi'].diff()
@@ -646,18 +526,12 @@ class Stats(object):
             obi_change_list.append(obi_change)
 
         self.quoteData[symbol].loc[:, 'obi'] = obi_change_list
-        positivePos = self.quoteData[symbol]['obi'] > 6
-        negativePos = self.quoteData[symbol]['obi'] < -6
-        self.quoteData[symbol].loc[positivePos, 'obi_'+ '_min'] = 1
-        self.quoteData[symbol].loc[negativePos, 'obi_'+ '_min'] = -1
-        self.quoteData[symbol].loc[(~positivePos) & (~negativePos), 'obi_' + '_min'] = 0
-        # self.quoteData[symbol].loc[:,''] =
-        # self.quoteData[symbol].loc[:, 'obi' + str(window) + '_min_sum'] = self.quoteData[symbol].loc[:,'obi'].rolling(window * 60).sum()
-        # todo: 把几层obi当作一层看待，适合高价股？
+
         return self.quoteData[symbol]
 
 
-    def price_volume(self,symbol):
+    def volume_change(self,symbol):
+        #检测对应价格的变动量以及变动率。记录变动时间等等。这个后面有个更好更快的版本了。可以删去。
         quotedata = stats.time_cut(symbol)
         askPrice1 = quotedata.loc[:,'askPrice2']
         bidPrice1 = quotedata.loc[:,'bidPrice2']
@@ -710,8 +584,22 @@ class Stats(object):
         return df
 
     def large_order(self,symbol,price = 5.9, closetime=' 14:50:00'):
-        ###20190402
-        ##
+        '''
+        检测某一个价位当天的情况。
+        ##用于检测有无单一大挂单。可能是虚假单。
+        包括所在当前tick盘口位置（location) bid是负号，ask是正号，
+        交易量（nvolume，从tradeorder接入） 对应该price的交易数目
+        加单量（add_cancel)  正的表示加单 负的表示撤单
+        加单绝对值（add_cancel_abs)
+        订单变化量（order diff)
+        ##todo 和order变化不同的是 这里去除了交易量的影响来计算。
+        ###按每个价格计算一次也太慢了
+        例子：20190409的青岛港 601298.SH price = 10.85
+        10.85这个价位出现bp10到bp1到转变到ap4，以第117行为例：
+        买单减少116手，交易是165手，那么新增订单是49手
+        再以123行为例
+        此时价格是卖3，卖单增加138手，交易数是108手，那么实际在10.85新增下单数目是246手。
+        '''
         window = 50
         quotedata = stats.time_cut(symbol,closetime=closetime )
         Price_form = dict()
@@ -761,14 +649,16 @@ class Stats(object):
         vol.loc[:,'add_cancel_abs'] =vol.loc[:,'add_cancel'].abs()
         diff_where = np.sign(vol.loc[:, 'order']).diff() !=0
         last_time = (list(vol.loc[diff_where,:].index)[-1])
-        return max(vol.loc[last_time:,'add_cancel_abs'])
+        return vol#max(vol.loc[last_time:,'add_cancel_abs'])
 
 
     def tradeorder(self,symbol,quotedata,price = 6.25):
-        ###tradeorder
-        ###输入价格 ，返回quotedata tick的间隔下以price交易的volume
-
-
+        '''
+        tradeorder
+        给定价格
+        输出当前以该价格交易的交易量。
+        ### todo 这里没有识别是买单卖单。这个重要吗? (可以仔细思考下）
+        '''
         tradeData = self.tradeData[symbol]
 
         #print(tradeData.columns)
@@ -791,19 +681,41 @@ class Stats(object):
 
 
     def high_obi(self,symbol):
-        ###large_order_count
-        ###用于统计大于某个阈值large_margin_buy(ask volume)/large_margin_sell(bid volume)的最小/大价格
-        ###num ：默认统计档数
+        '''
+        ##接入large_order_count(self,quotedata,large_margin_buy,large_margin_sell,num = 10)
+        定义量阈值，认为这是大单：
+        比如
+        N个tick的主动买量：abVolume: active
+        Buy
+        volume
+        N个tick的主动卖量：asVolume: active
+        Sell
+        volume
+        以askVolume
+        卖盘为例，如果买的交易量很小，那么一个小的挂单可以“卡住”价格。
+        如果
+        存在大于abVolume的量，返回满足条件的最大askPrice，Max_ask_price, 以及对应的askVolume, Max_ask_volume, 若无
+        则返回askPrice = np.nan
+        askVolume = 0
+        对应asVolume
+        和bid盘
+        有
+        Min_bid_volume, Min_bid_price
         ###
-        ###待优化效率
+        因子：
+        如果Min_bid_volume == 0 & Max_ask_volume != 0 = > bid侧无“大单”，ask侧有一个或以上的“大单”
+
+        ## todo 这里涉及到交易量的预测，预期一个大单的出现可能是一个方向？
+        ## todo 上面考虑的因子其实和obi有点违背，obi本身有设计到吃掉大单的行为，上面的因子是一种“远离”大单的行为。
+        '''
         quotedata = self.quoteData[symbol]
         tradeData = self.cancel_order(symbol)
-        tradeData.loc[:, 'cum_buy']  = tradeData.loc[:, 'abVolume'].rolling(10).sum()
-        tradeData.loc[:, 'cum_sell']  = tradeData.loc[:, 'asVolume'].rolling(10).sum()
+        tradeData.loc[:, 'cum_buy']  =tradeData.loc[:, 'abVolume'].rolling(10).sum()
+        tradeData.loc[:, 'cum_sell']  =tradeData.loc[:, 'asVolume'].rolling(10).sum()
 
         quotedata.loc[:,'obi'] = np.log(quotedata.loc[:,'askVolume1'] /quotedata.loc[:,'bidVolume1'])
-        quotedata.loc[:, 'tv'] = quotedata.loc[:,'tradeVolume'].diff(5)
-        volume_bid, volume_ask,bid_loc,ask_loc = self.large_order_count(quotedata,tradeData.loc[:, 'cum_buy'],tradeData.loc[:, 'cum_sell']  )
+        #quotedata.loc[:, 'tv'] = quotedata.loc[:,'tradeVolume'].diff(10)
+        volume_bid, volume_ask,bid_loc,ask_loc = self.large_order_count(quotedata,tradeData.loc[:, 'cum_buy'],tradeData.loc[:, 'cum_sell'],num= 10  )
 
 
         vb = list()
@@ -846,20 +758,25 @@ class Stats(object):
         ###num ：默认统计档数
         ###
         ###待优化效率
-        price_ask, volume_ask, price_bid, volume_bid = self.quote_cut(quotedata)
+        price_ask, volume_ask, price_bid, volume_bid = self.quote_cut(quotedata,num = num)
         bid_ = (volume_bid).apply(lambda  x : x - np.asarray(large_margin_sell))> 0
         bid_ = pd.DataFrame(bid_,dtype= int)
         price_bid.columns = bid_.columns
         bid_ = price_bid *bid_
         volume_zero = bid_ ==0
         bid_[volume_zero] = np.nan
-        bid_ = bid_.max(axis =1)
+        bid_ = bid_.min(axis =1)
 
 
 
         bid_loc = (price_bid).apply(lambda  x : x == np.asarray(bid_))
         bid_loc = pd.DataFrame(bid_loc,columns=volume_bid.columns,dtype= int)
         bid_loc =( bid_loc * volume_bid ).sum(axis=1)
+
+
+        #zero_bid_loc = bid_loc ==0
+        #bid_loc[zero_bid_loc] = np.nan
+
 
         ask_ = (volume_ask).apply(lambda  x : x - np.asarray(large_margin_buy))> 0
         ask_ = pd.DataFrame(ask_,dtype= int)
@@ -868,13 +785,14 @@ class Stats(object):
         ask_ = price_ask *ask_
         volume_zero = ask_ ==0
         ask_[volume_zero] = np.nan
-        ask_ = ask_.min(axis =1)
+        ask_ = ask_.max(axis =1)
 
 
         ask_loc = (price_ask).apply(lambda  x : x == np.asarray(ask_))
         ask_loc = pd.DataFrame(ask_loc,columns=volume_ask.columns,dtype= int)
         ask_loc =( ask_loc * volume_ask ).sum(axis=1)
-
+        #zero_ask_loc = ask_loc ==0
+        #ask_loc[~zero_ask_loc] = np.nan
         #bid_.fillna(method='ffill', inplace=True)
         #ask_.fillna(method='ffill', inplace=True)
         #bid_loc.fillna(method='ffill', inplace=True)
@@ -882,8 +800,9 @@ class Stats(object):
         return bid_,ask_,bid_loc,ask_loc
 
     def point_monitor(self, symbol, point_list):
-        ## point_monitor
-        ## 主要是连接过滤后的序列化处理 类似于分钟数据采样后的策略。
+        ###链接过滤后的序列化处理，类似于分钟数据的采样后的策略
+        ### todo 如果有合适的key point 序列，可以考虑他们之间的统计性质 类似分钟数据下的策略构造。
+        ### 建议用作统计两个或多个key point 之间的性质。而不仅仅是一个信号过滤器。
 
         quotedata = self.quoteData[symbol]
 
@@ -1073,6 +992,7 @@ class Stats(object):
 
 
     def price_concat(self,price_ask,price_bid):
+        ## 统计当天出现的所有价格
         ask_column = price_ask.columns
         bid_column = price_bid.columns
         price_list = list()
@@ -1092,10 +1012,31 @@ class Stats(object):
 
 
     def price_volume_fun(self,symbol):
+        '''
+        dataframe test:算出每个tick下的对应价格的volume，并放在一个以time 为index，price 为column 的dataframe内
+        对于该tick前未出现过的价位，其对应的volume 为nan，若出现，则对应的volume 为最新出现的volume，
+        为了区分bid和ask，其中askVolume 为正 volume，bidVolume 为负volume
+        在bp10 到ap10之间的价位，若不出现在盘口，则记为0，因为被吃掉了
+        计算每一个tick之间的订单变化情况：
+        order_change = diff(test)
+
+        计算posChange :正向变化总和 正向变化包括：ask方加单 ask方吃bid单，bid方撤单
+        posChange = (order_change*((order_change> 0 ).astype(int))).sum(axis = 1)
+        计算negChange :负向变化总和 负向变化包括：bid方加单 bid方吃ask单，ask方撤单
+        negChange = (order_change*((order_change<0).astype(int))).sum(axis = 1)
+        计算净变化totalchange和绝对变化abschange
+        totalchange = posChange - negchange
+        abschange = posChange + negchange
+        观测 20 tick内的一致性：
+        consistence = quotedata.loc[:, 'TOTALchange'].rolling(20).sum() / quotedata.loc[:, 'abs_change'].rolling(20).sum()
+        假如consistence 绝对高的情况下，totalchange占abschange的比重很大，那么意味着poschange 或者negchange其中一个相对很小。这里使用滚动均值方差来表示绝对高,参数为2
+        posMark  = consistence > consistence_mean + 2 * consistence_std  ##过高，一致poschange，ask方一致增强，表示卖信号
+        negMark  = consistence < consistence_mean - 2 * consistence_std  ##过低，一致negchange，bid方一致增强，表示买信号
+        '''
         quotedata =self.quoteData[symbol]
         quotedata = quotedata[~quotedata.index.duplicated(keep='first')]
         #print(quotedata.index.duplicated(keep='first'))
-        price_ask, volume_ask, price_bid, volume_bid = self.quote_cut(quotedata)
+        price_ask, volume_ask, price_bid, volume_bid = self.quote_cut(quotedata,num= 10)
 
         ## price_today 当日的所有的价格序列。
         len_time = len(quotedata.index)
@@ -1122,24 +1063,33 @@ class Stats(object):
         test.fillna(method = 'ffill',inplace = True)
         order_change = test.diff()
 
+
         quotedata.loc[:,'posChange'] = (order_change*((order_change> 0 ).astype(int))).sum(axis = 1)
         quotedata.loc[:,'negChange'] = (order_change*((order_change<0).astype(int))).sum(axis = 1)
 
-        quotedata.loc[:,'tradeVol']  = quotedata.loc[:,'tradeVolume'].diff()
+        quotedata.loc[:,'tradeVol']  = quotedata.loc[:,'tradeVolume'].diff()*1
 
         quotedata.loc[:, 'TOTALchange'] = (quotedata.loc[:,'posChange'] + quotedata.loc[:,'negChange'])
         quotedata.loc[:, 'abs_change'] =( abs(quotedata.loc[:,'posChange']) + abs(quotedata.loc[:,'negChange']))
-
+        over_vol = quotedata.loc[:, 'tradeVol']>= quotedata.loc[:, 'abs_change'] /2
+        quotedata.loc[:,'over_vol'] = 0
+        quotedata.loc[over_vol,'over_vol'] =1
+        quotedata.loc[:, 'cum_over_vol'] = (quotedata.loc[:,'over_vol']* quotedata.loc[:, 'tradeVol']).cumsum()
+        quotedata.loc[:, 'cum_over_vol_diff'] = quotedata.loc[:,'tradeVolume'] - quotedata.loc[:, 'cum_over_vol']
         quotedata.loc[:, 'consistence'] = quotedata.loc[:, 'TOTALchange'].rolling(20).sum() / quotedata.loc[:, 'abs_change'].rolling(20).sum()
         quotedata.loc[:,'consistence_mean'] = quotedata.loc[:, 'consistence'].rolling(20).mean()
         quotedata.loc[:,'consistence_std'] = quotedata.loc[:, 'consistence'].rolling(20).std()
-        posMark =(quotedata.loc[:, 'consistence']> quotedata.loc[:,'consistence_mean']+1*quotedata.loc[:,'consistence_std'])
-        negMark =(quotedata.loc[:, 'consistence']< quotedata.loc[:,'consistence_mean']-1*quotedata.loc[:,'consistence_std'])
+        posMark =(quotedata.loc[:, 'consistence']> quotedata.loc[:,'consistence_mean']+2*quotedata.loc[:,'consistence_std'])#&((quotedata.loc[:, 'consistence']< quotedata.loc[:,'consistence_mean']+3*quotedata.loc[:,'consistence_std']))
+        negMark =(quotedata.loc[:, 'consistence']< quotedata.loc[:,'consistence_mean']-2*quotedata.loc[:,'consistence_std'])#&(quotedata.loc[:, 'consistence']> quotedata.loc[:,'consistence_mean']-3*quotedata.loc[:,'consistence_std'])
+        bv_sum = quotedata.loc[:,'bidVolume1']+ quotedata.loc[:,'bidVolume2']+ quotedata.loc[:,'bidVolume3']+ quotedata.loc[:,'bidVolume4']+ quotedata.loc[:,'bidVolume5']
+        av_sum = quotedata.loc[:,'bidVolume1']+ quotedata.loc[:,'bidVolume2']+ quotedata.loc[:,'bidVolume3']+ quotedata.loc[:,'bidVolume4']+ quotedata.loc[:,'bidVolume5']
+        #negMark = quotedata.loc[:,'posChange'] > av_sum
+        #posMark = quotedata.loc[:,'negChange'] <- bv_sum
         quotedata.loc[posMark, 'marker'] = 1
         quotedata.loc[negMark, 'marker'] = -1
         quotedata.loc[(~posMark) & (~negMark), 'marker'] =0
         quotedata.loc[:,'change_cum'] = quotedata.loc[:, 'TOTALchange'] .cumsum()
-
+        '''
         key_point = quotedata.loc[:, 'marker'] !=0
         quotedata_kp = quotedata.loc[key_point, :]
         quotedata_kp.loc[:,'tc_change'] = quotedata_kp.loc[:,'change_cum'].diff()
@@ -1155,15 +1105,8 @@ class Stats(object):
         para_matrix.loc[:,'price_diff_50'] = para_matrix.loc[:,'midp'] - para_matrix.loc[:,'price_shift_50']
         large_change = abs(para_matrix.loc[:,'price_diff_20'])> para_matrix.loc[:,'midp'].iloc[0]*15/10000  + 0.01
         para_matrix = para_matrix.loc[large_change,:]
-
-
+        '''
         return quotedata
-
-
-
-
-
-
 
     def dict_merge(self,dict1,dict2):
         for k in dict1.keys():
@@ -1200,6 +1143,19 @@ class Stats(object):
                 dict_y[0] = 0
         return dict_y
 
+
+    def PV_summary(self,symbol):
+        quotedata = self.price_volume_fun(symbol)
+        quotedata_2 = self.high_obi(symbol)
+        quotedata_3 = self.obi_fixedprice(symbol)
+        quotedata_2 = quotedata_2[~quotedata_2.index.duplicated(keep='first')]
+        quotedata_3 = quotedata_3[~quotedata_3.index.duplicated(keep='first')]
+        quotedata.loc[:,'large_bid'] = quotedata_2.loc[:,'large_bid']
+        quotedata.loc[:,'large_ask'] = quotedata_2.loc[:,'large_ask']
+        quotedata.loc[:,'bid_loc'] = quotedata_2.loc[:,'bid_loc']
+        quotedata.loc[:,'ask_loc'] = quotedata_2.loc[:,'ask_loc']
+        quotedata.loc[:,'obi'] = quotedata_2.loc[:,'obi']
+        return quotedata
     def vol_detect(self, symbol):
 
         ###算一算突破成功率？
@@ -1218,7 +1174,69 @@ class Stats(object):
 
         return tradeData
 
+    def ProcessOrderInfo(self, sampleData, orderType = ' nBidOrder'):
+        #整合订单信息
+        ##todo 可以考察一个订单被吃掉以后的情况用作验证想法（ 可以结合到订单的分析，注意情况）
+        """
+        This function is used to aggregate the orderInfo
+        :param orderInfo: the groupby object which is group by the bidorder or askorder
+        :return:整合得到以下信息：主动报单方向，主动报单量，主动成交量，被动成交量，撤单量，主动报单金额，主动成交金额，被动成交金额
+                                 撤单金额，主动报单价格
+        """
+        # activeBuy     = sampleData.groupby([orderType, ' nBSFlag'])
+        # activeBuyTime = activeBuy.first().loc[:, [' nTime']]
+        # activeBuyPrice= activeBuy.last().loc[:, [' nPrice']]
+        # activeBuy     = pd.concat([activeBuy.sum().loc[:, [' nVolume', ' nTurnover']], activeBuyTime, activeBuyPrice], 1)  # here, sort by level = 2 due to that level = 2 is the time index level, first two levels is order and bs flag
+        activeBuy     = sampleData.groupby([orderType, ' nBSFlag']).agg({' nVolume': 'sum', ' nTurnover': 'sum', ' nTime': 'first', ' nPrice': 'last'})  # use agg can apply different type of
+        if orderType == ' nBidOrder':
+            orderDirection = 'B'
+            otherSideDirection = 'S'
+        else:
+            orderDirection = 'S'
+            otherSideDirection = 'B'
 
+        # start = time.time()
+        # activeBuy     = activeBuy.sort_values(' nTime')
+        # activeBuy     = activeBuy.reset_index()
+        # activeBuy.index = pd.to_datetime(pd.Series(map(lambda stime: self.tradeDate + str(stime),
+        #                            activeBuy.loc[:, ' nTime'])), format='%Y%m%d%H%M%S%f')
+
+        # activeBuy.index = list(map(lambda stime: datetime.datetime.strptime(self.tradeDate + str(stime), '%Y%m%d%H%M%S%f'),
+        #                            activeBuy.loc[:, ' nTime']))
+
+
+        # activeBuyB = activeBuy.loc[activeBuy.loc[:, ' nBSFlag'] == orderDirection, [orderType, ' nPrice', ' nVolume', ' nTurnover']]  # which is the part of active buying
+        # activeBuyB.columns = ['order', 'auctionPrice', 'activeVolume', 'activeTurnover']
+        # activeBuyS = activeBuy.loc[activeBuy.loc[:, ' nBSFlag'] == otherSideDirection, [orderType, ' nPrice', ' nVolume', ' nTurnover']]  # which is the part of active buying
+        # activeBuyS.columns = ['order', 'tradePrice', 'passiveVolume', 'passiveTurnover']
+        # activeBuyC = activeBuy.loc[activeBuy.loc[:, ' nBSFlag'] == ' ', [orderType, ' nVolume']]  # which is the part of active buying and cancel
+        # activeBuyC.columns = ['order', 'cancelVolume']
+        # activeBuy = pd.merge(activeBuyB, activeBuyS, on='order', sort=False, how='left')
+        # activeBuy = pd.merge(activeBuy, activeBuyC, on='order', sort=False, how='left')
+        # activeBuy.index = activeBuyB.index
+        # end = time.time()
+        # start = time.time()
+        activeBuyB = activeBuy.iloc[activeBuy.index.get_level_values(' nBSFlag') == orderDirection]
+        if activeBuyB.shape[0] == 0:
+            return None
+        activeBuyB.columns = ['activeVolume', 'activeTurnover', ' nTime', 'auctionPrice']
+        activeBuyS = activeBuy.iloc[activeBuy.index.get_level_values(' nBSFlag') == otherSideDirection]
+        activeBuyS.columns = ['passiveVolume', 'passiveTurnover', ' nTime', 'tradePrice']
+        activeBuyC = activeBuy.iloc[activeBuy.index.get_level_values(' nBSFlag') == ' '].loc[:, [' nVolume', ' nTime']]
+        activeBuyC.columns = ['cancelVolume', ' nTime']
+        activeBuy = pd.merge(activeBuyB.reset_index(), activeBuyS.loc[:,['passiveVolume', 'passiveTurnover', 'tradePrice']].reset_index(), on=orderType, sort=False, how='left')
+        activeBuy = pd.merge(activeBuy, activeBuyC.loc[:, 'cancelVolume'].reset_index(), on=orderType, sort=False, how='left')
+        activeBuy.index = pd.to_datetime(activeBuy.loc[:, ' nTime'])
+        # end = time.time()
+        # print(end - start,' s')
+        activeBuy = activeBuy.rename(columns = {orderType:'order'})
+        activeBuy = activeBuy.loc[:, ['order', 'auctionVolume', 'auctionPrice', 'auctionTurnover',
+                                 'activeVolume', 'activeTurnover', 'passiveVolume', 'passiveTurnover', 'cancelVolume']].fillna(0)
+        activeBuy.loc[:, 'auctionVolume'] = activeBuy.loc[:, 'activeVolume'] + activeBuy.loc[:, 'passiveVolume'] + activeBuy.loc[:, 'cancelVolume']
+        activeBuy.loc[:, 'auctionTurnover'] = activeBuy.loc[:, 'auctionPrice'] * activeBuy.loc[:, 'auctionVolume'] / 100
+        activeBuy.loc[:, 'orderDirection'] = orderDirection
+        return activeBuy.loc[:, ['order', 'orderDirection', 'auctionVolume', 'auctionPrice', 'auctionTurnover',
+                                 'activeVolume', 'activeTurnover', 'passiveVolume', 'passiveTurnover', 'cancelVolume']]
 
 
     def run(self,symbol):
@@ -1228,10 +1246,11 @@ class Stats(object):
         #stats.cancel_order(symbol)
         #stats.price_filter()
 
-        price_situation =self.price_volume_fun(symbol)
+        #price_situation =self.ProcessOrderInfo(data.tradeData[symbol],orderType = ' nAskOrder')
+        price_situation =self.large_order(symbol,price = 10.85)
 
         t2 = time.time()
-        self.plotly_Plot(price_situation)
+        self.check_file(price_situation)
         #price_situation
         #price_situation = stats.high_obi(symbol,' 14:55:00')
         #self.check_file(price_situation,symbol = symbol)
@@ -1247,13 +1266,13 @@ if __name__ == '__main__':
     dataPath = '//192.168.0.145/data/stock/wind'
     ## /sh201707d/sh_20170703
     t1 = time.time()
-    tradeDate = '20190115'
+    tradeDate = '20190404'
     symbols_path  = 'D:/SignalTest/SignalTest/ref_data/sh50.csv'
     symbol_list = pd.read_csv(symbols_path)
 
     symbols = symbol_list.loc[:,'secucode']
     print(symbols)
-    symbols = ['600086.SH']
+    symbols = ['601298.SH']
     data = Data.Data(dataPath,symbols, tradeDate,'' ,dataReadType= 'gzip', RAWDATA = 'True')
     stats   = Stats(symbols,tradeDate,data.quoteData,data.tradeData)
 

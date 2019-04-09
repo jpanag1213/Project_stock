@@ -67,6 +67,7 @@ class SignalPlot(object):
             column_name = plot_pair[0]
 
             subplot_loc = plot_pair[1]
+            print(subplot_loc)
             mode = plot_pair[2]
             y_data = (quotedata.loc[:, column_name])
             if mode == '':
@@ -74,10 +75,10 @@ class SignalPlot(object):
                 trace = go.Scatter(x = list(quotedata.loc[:,'exchangeTime']), y=list(y_data),name = column_name, mode = mode)
             else:
                 try:
-                    trace = go.Scatter( x=list(quotedata.loc[:,'exchangeTime']),y =list(y_data.iloc[:] * midp),name = column_name, mode = 'markers',marker= dict( size = 7,symbol =mode))
+                    trace = go.Scatter( x=list(quotedata.loc[:,'exchangeTime']),y =list(y_data.iloc[:] * midp),name = column_name, mode = 'markers',marker= dict( size = 12,symbol =mode))
                 except:
                     print('No such marker, circle instead')
-                    trace = go.Scatter(x=list(quotedata.loc[:, 'exchangeTime']), y=list(y_data.iloc[:] * midp),name=column_name, mode='markers', marker=dict(size=7))
+                    trace = go.Scatter(x=list(quotedata.loc[:, 'exchangeTime']), y=list(y_data.iloc[:] * midp),name=column_name, mode='markers', marker=dict(size=12))
 
             fig.append_trace(trace,subplot_loc,1)
 
@@ -96,15 +97,16 @@ class SignalPlot(object):
 
 
 
+
 if __name__ == '__main__':
     dataPath = '//192.168.0.145/data/stock/wind'
     ## /sh201707d/sh_20170703
     t1 = time.time()
-    tradeDate = '20190115'
-    symbols = ['600086.SH']
+    tradeDate = '20190404'
+    symbols = ['002714.SZ']
     data = Data.Data(dataPath,symbols, tradeDate,'' ,dataReadType= 'gzip', RAWDATA = 'True')
     stats   = stats.Stats(symbols,tradeDate,data.quoteData,data.tradeData)
-    quotedata = stats.price_volume_fun(symbols[0])
+    quotedata = stats.PV_summary(symbols[0])
     plt = SignalPlot(symbols[0], tradeDate, quotedata, data.tradeData)
     #print(data.tradeData[symbols[0]])
     t2 = time.time()
@@ -114,12 +116,13 @@ if __name__ == '__main__':
     ## subplot_plot 画在那个subplot
     ## plot_column  plot Dataframe 的指定属性
     ## mode_column  图标 '' ：直线 非"" 指定
-    plot_column = ['consistence_mean', 'midp', 'buypoint', 'sellpoint']
+    plot_column = ['midp','posChange','negChange', 'abVolume', 'asVolume','tradeVol','buypoint','sellpoint','large_ask','large_bid']
 
-    subplot_plt = [2, 1, 1, 1]
+    stats.check_file(quotedata, symbol=symbols[0])
+    subplot_plt = [2, 1,1,1, 1,1, 2,2,2,2]
 
 
-    mode_column = ['', '', 'triangle-down', 'abc']
+    mode_column = ['', '', '', '', '', '','circle','trangle_up','','']
     plt.plotly_Plot(plot_column,subplot_plt,mode_column)
     print('readData_time:' + str(t2 - t1))
     #
