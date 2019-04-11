@@ -32,7 +32,7 @@ def run(configfile):
                           outputpath=outputpath, signal=signal, lbwindow=lbwindow, lawindow=lawindow, paraset=paraset,
                           Asset=Asset, Fee=Fee, Name=Name)
     print(list(tradingDays))
-    pool = Pool(2)
+    pool = Pool(6)
 
     results = pool.map(partial_run, list(tradingDays))
     pool.close()
@@ -79,9 +79,9 @@ def strategy_run(tradingDays,symbols, dataPath, dataReadType,  outputpath, signa
 
             ##todo future strategy
             if Asset == 'Future':
-                strategy = Strategy.Strategy(symbol, round(1000000/quoteData['midp'].iloc[-1],-2), quoteData, signal, tradingDay,lbwindow, lawindow,10, 'lawindow',fee = Fee,outputpath = './strategy/' + tradingDay, stockType = 'low',asset = 'Future')
+                strategy = Strategy.Strategy(symbol, round(1000000/quoteData['midp'].iloc[-1],-2), quoteData, signal, tradingDay,lbwindow, lawindow,6, 'lawindow',fee = Fee,outputpath = './strategy/' + tradingDay, stockType = 'low',asset = 'Future')
             else:
-                strategy = Strategy.Strategy(symbol, round(1000000/quoteData['midp'].iloc[-1],-2), quoteData, signal,tradingDay,lbwindow, lawindow, 10, 'lawindow',fee = Fee,outputpath = './strategy/' + tradingDay, stockType = 'low')
+                strategy = Strategy.Strategy(symbol, round(1000000/quoteData['midp'].iloc[-1],-2), quoteData, signal,tradingDay,lbwindow, lawindow,6, 'lawindow',fee = Fee,outputpath = './strategy/' + tradingDay, stockType = 'low')
             strategy.SummaryStrategy()
             strategy.Plot()
             #print(strategy.sts)

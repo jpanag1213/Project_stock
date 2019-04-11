@@ -262,7 +262,14 @@ if __name__ == '__main__':
         plt.figure()
         plt.plot(avg_pnl_cum.loc[symbol,:])
         plt.savefig( './performance/'+ 'test/' +symbol + '_1.jpg')
-    
+    '''
+    time_list = ['201903','201904']
+    for t in time_list:
+        file_Fer= [file for file in fm_o if (file[:6] == t)]
+        dm_Fer,pnl_Fer,times_Fer,wr_Fer,trade_rate_Fer = ReadTest(file_Fer)
+        dm_Fer.to_csv('./'+'zz1000_'+t+'_performance.csv')
+        dm_o.to_csv('./zz10000_performance.csv')
+    '''
     #group_performance()
     #plt.plot(avg_pnl_cum)
     
@@ -338,10 +345,7 @@ if __name__ == '__main__':
     M1902_summary.loc[:,'%nontrade_stock'] =(M1902_pnl == 0).sum() / M1902_pnl.shape[0]
     
     #M1902_summary.to_csv('./'+'sh50_'+'Fer_summary.csv')
-    
-    
-    file_Fer= [file for file in fm_o if (file[:6] == t)]
-    dm_Fer,pnl_Fer,times_Fer,wr_Fer,trade_rate_Fer = ReadTest(file_Fer)
+
     '''
     ###dm_Fer.to_csv('./'+'sh50_'+'Fer_performance.csv')
     #dm_o.to_csv('./performance_sh50.csv')

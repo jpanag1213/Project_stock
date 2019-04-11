@@ -58,9 +58,9 @@ class SignalPlot(object):
 
         ## 单独plot quotedata的情况下
 
-        quotedata.loc[:,'buypoint'] = quotedata.loc[:,'marker'] == 1
+        quotedata.loc[:,'buypoint'] = quotedata.loc[:,'signal_'] == 1
         quotedata.loc[quotedata.loc[:, 'buypoint'] ==0, 'buypoint'] = np.nan
-        quotedata.loc[:,'sellpoint'] = quotedata.loc[:,'marker'] == -1
+        quotedata.loc[:,'sellpoint'] = quotedata.loc[:,'signal_'] == -1
         quotedata.loc[quotedata.loc[:, 'sellpoint'] == 0, 'sellpoint'] = np.nan
         midp = quotedata.loc[:, 'midp']
         for plot_pair in zip(plot_column,subplot_plt,mode_column):
@@ -83,9 +83,9 @@ class SignalPlot(object):
             fig.append_trace(trace,subplot_loc,1)
 
         fig.layout
-        print( self.outputpath+'/test_plotly.html')
+        print( self.outputpath+'/'+self.tradeDate+'_'+self.symbol+'.html')
         #plotly.
-        plotly.offline.plot(fig,filename= self.outputpath+'/test_plotly.html',image='svg',auto_open=False)
+        plotly.offline.plot(fig,filename=  self.outputpath+'/'+self.tradeDate+'_'+self.symbol+'.html',image='svg',auto_open=False)
         #plot_html = plotly.offline.offline._plot_html(fig ,False, "", True, '100%', 525,auto_play= False)
         #plotly.offline.offline._plot_html()
         #'config', 'validate', 'default_width', 'default_height', 'global_requirejs', and 'auto_play'
@@ -102,8 +102,8 @@ if __name__ == '__main__':
     dataPath = '//192.168.0.145/data/stock/wind'
     ## /sh201707d/sh_20170703
     t1 = time.time()
-    tradeDate = '20190404'
-    symbols = ['002714.SZ']
+    tradeDate = '20190301'
+    symbols = ['603959.SH']
     data = Data.Data(dataPath,symbols, tradeDate,'' ,dataReadType= 'gzip', RAWDATA = 'True')
     stats   = stats.Stats(symbols,tradeDate,data.quoteData,data.tradeData)
     quotedata = stats.PV_summary(symbols[0])
@@ -116,14 +116,13 @@ if __name__ == '__main__':
     ## subplot_plot 画在那个subplot
     ## plot_column  plot Dataframe 的指定属性
     ## mode_column  图标 '' ：直线 非"" 指定
-    plot_column = ['midp','posChange','negChange', 'abVolume', 'asVolume','tradeVol','buypoint','sellpoint','large_ask','large_bid']
+    plot_column = ['midp', 'consistence','consistence_mean', 'upper_', 'lower_', 'buypoint', 'sellpoint','large_bid','large_ask','spread']
 
-    stats.check_file(quotedata, symbol=symbols[0])
-    subplot_plt = [2, 1,1,1, 1,1, 2,2,2,2]
+    # stats.check_file(quotedata, symbol=symbols[0])
+    subplot_plt = [2, 1, 1,1, 1, 2, 2,2,2,3]
 
-
-    mode_column = ['', '', '', '', '', '','circle','trangle_up','','']
-    plt.plotly_Plot(plot_column,subplot_plt,mode_column)
+    mode_column = ['', '','', '', '', 'circle', 'trangle_up','','','']
+    plt.plotly_Plot(plot_column, subplot_plt, mode_column)
     print('readData_time:' + str(t2 - t1))
     #
 

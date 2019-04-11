@@ -249,7 +249,6 @@ class Stats(object):
         tradeData.loc[bid_order, 'numbs_flag'] = 1
         tradeData.loc[ask_order, 'numbs_flag'] = -1
         tradeData.loc[can_order, 'numbs_flag'] = 0
-        cancel_order = tradeData.loc[:, ' nPrice'] == 0
 
         tradeData.loc[:, 'temp'] = tradeData.loc[:, ' nPrice']
         #tradeData.loc[pos, 'temp'] = np.nan
@@ -281,6 +280,7 @@ class Stats(object):
         r_tradeData = resample_tradeData.diff()
         r_tradeData.loc[:, 'abPrice'] = r_tradeData.loc[:, 'abPrice'] / r_tradeData.loc[:, 'abVolume']
         r_tradeData.loc[:, 'asPrice'] = r_tradeData.loc[:, 'asPrice']/ r_tradeData.loc[:, 'asVolume']
+        r_tradeData.loc[:, 'VWAP'] =(r_tradeData.loc[:, 'asPrice']+ r_tradeData.loc[:, 'asPrice'])/ (r_tradeData.loc[:, 'asVolume']+r_tradeData.loc[:, 'abVolume'])
         r_tradeData.loc[:,'timecheck'] =quotedata.loc[:, 'exchangeTime']
         #stats.check_file(r_tradeData)
 
@@ -765,7 +765,7 @@ class Stats(object):
         bid_ = price_bid *bid_
         volume_zero = bid_ ==0
         bid_[volume_zero] = np.nan
-        bid_ = bid_.min(axis =1)
+        bid_ = bid_.max(axis =1)
 
 
 
@@ -785,7 +785,7 @@ class Stats(object):
         ask_ = price_ask *ask_
         volume_zero = ask_ ==0
         ask_[volume_zero] = np.nan
-        ask_ = ask_.max(axis =1)
+        ask_ = ask_.min(axis =1)
 
 
         ask_loc = (price_ask).apply(lambda  x : x == np.asarray(ask_))
@@ -976,18 +976,80 @@ class Stats(object):
 
     def response_fun(self,symbol):
 
-        ##价格响应函数 待补充
-        tradeData = self.cancel_order(symbol)
-        #print(tradeData)
-        tradeData.loc[:,'abPrice'].fillna(method='ffill', inplace=True)
-        tradeData.loc[:, 'asPrice'].fillna(method='ffill', inplace=True)
-        tradeData.loc[:,'avg_price'] =  ((tradeData.loc[:, 'abVolume' ]   *tradeData.loc[:, 'abPrice' ] ) +tradeData.loc[:, 'asVolume' ]   *tradeData.loc[:, 'asPrice' ] ) /(tradeData.loc[:, 'asVolume' ]+tradeData.loc[:, 'abVolume' ])
-        delta_Price = tradeData.loc[:,'avg_price'].diff()
 
-        bar_list = list()
+        quotedata = self.time_cut(symbol)
+        quotedata = quotedata[~quotedata.index.duplicated(keep='first')]
+        tradeData = self.tradeData[symbol]
 
+        quote_time = pd.to_datetime(quotedata.exchangeTime.values).values
+        quotedata.loc[:, 'tradeVolume'] = quotedata.loc[:, 'tradeVolume'].diff()
+        quotedata.loc[:, 'Turnover'] = quotedata.loc[:, 'totalTurnover'].diff()
+        quotedata.loc[:,'VWAP'] = quotedata.loc[:,'Turnover'] / quotedata.loc[:, 'tradeVolume']
+        quotedata.loc[:,'spd'] = quotedata.loc[:, 'askPrice1'] -  quotedata.loc[:, 'bidPrice1']
+        quotedata.loc[quotedata.loc[:,'spd'] == 0 , 'spd'] = 0.01
+        bid_order = tradeData.loc[:, ' nBSFlag'] == 'B'
+        ask_order = tradeData.loc[:, ' nBSFlag'] == 'S'
+        can_order = tradeData.loc[:, ' nBSFlag'] == ' '
+        tradeData.loc[bid_order, 'numbs_flag'] = 1
+        tradeData.loc[ask_order, 'numbs_flag'] = -1
+        tradeData.loc[can_order, 'numbs_flag'] = 0
+        temp_quote_time = np.asarray(list(quote_time))
+        tradeData.loc[:, 'temp'] = tradeData.loc[:, ' nPrice']
+        # tradeData.loc[pos, 'temp'] = np.nan
+        tradeData.temp.fillna(method='ffill', inplace=True)
+        lastrep = list(tradeData.temp.values[:-1])
+        lastrep.insert(0, 0)
+        lastrep = np.asarray(lastrep)
+        tradeData_quote = pd.merge(quotedata.loc[:, ['spd', 'tradeVolume', 'Turnover']], tradeData,
+                                   left_index=True, right_index=True, how='outer')
 
-        return tradeData
+        tradeData_quote.loc[:, 'spd'].fillna(method='ffill', inplace=True)
+        #ActiveBuy = (tradeData_quote.loc[:, 'numbs_flag'] == 1)
+        #ActiveSell = (tradeData_quote.loc[:, 'numbs_flag'] == -1)
+       # tradeData_quote.loc[ActiveBuy, 'abVolume'] = tradeData_quote.loc[ActiveBuy, ' nVolume']
+        #tradeData_quote.loc[ActiveSell, 'asVolume'] = tradeData_quote.loc[ActiveSell, ' nVolume']
+        #tradeData_quote.loc[ActiveBuy, 'abPrice'] = tradeData_quote.loc[ActiveBuy, ' nTurnover']
+        l_dict = dict()
+        for l in range(1,301,10):
+            #quotedata.loc[:, 'VWAP_l'] = quotedata.loc[:, 'VWAP'].shift(-l)
+            tradeData_quote.loc[:, 'VWAP_l'] = np.nan
+            tradeData_quote.loc[temp_quote_time,'VWAP_l'] = quotedata.loc[:, 'VWAP'].shift(-l)
+            tradeData_quote.loc[:,'VWAP_l'].fillna(method='ffill', inplace=True)
+            tradeData_quote.loc[:, 'rsp_func'] = tradeData_quote.loc[:, ' nVolume']* (- tradeData_quote.loc[:, ' nPrice'] +  tradeData_quote.loc[:, 'VWAP_l']) *tradeData_quote.loc[:, 'numbs_flag'] / tradeData_quote.loc[:, 'spd']
+            #print(np.nanmean(tradeData_quote.loc[:, 'rsp_func'])/np.nanmean(tradeData_quote.loc[:, ' nVolume']))
+            l_dict[l] = np.nanmean(tradeData_quote.loc[:, 'rsp_func'])/np.nanmean(tradeData_quote.loc[:, ' nVolume'])
+        '''
+        temp_quote_time = np.asarray(list(quote_time))
+        Columns_ = ['Rp_func']
+
+        resample_tradeData = tradeData_quote.loc[:, Columns_].resample('1S', label='right', closed='right').mean()
+
+        resample_tradeData = resample_tradeData.cumsum()
+        resample_tradeData = resample_tradeData.loc[temp_quote_time, :]
+        
+        r_tradeData = resample_tradeData.diff()
+        '''
+        '''
+        r_tradeData.loc[:, 'abPrice'] = r_tradeData.loc[:, 'abPrice'] / r_tradeData.loc[:, 'abVolume']
+        r_tradeData.loc[:, 'asPrice'] = r_tradeData.loc[:, 'asPrice'] / r_tradeData.loc[:, 'asVolume']
+        r_tradeData.loc[:, 'timecheck'] = quotedata.loc[:, 'exchangeTime']
+        '''
+        # stats.check_file(r_tradeData)
+
+        # stats.check_file(r_tradeData)
+        '''
+        quote_order = pd.merge(self.quoteData[symbol].loc[:, ['midp', 'midp_10', 'spread']], r_tradeData, left_index=True,
+                               right_index=True, how='left')
+        # .loc[:,'midp'] =self.quoteData[symbol].loc[:,'midp']
+
+        quote_order.to_csv(self.outputpath + './ quote_order.csv')
+
+        # self.quoteData[symbol].loc[:, ['midp', 'bidVolume1', 'askVolume1']].to_csv(self.outputpath + './ quote_o.csv')
+        '''
+        #r_tradeData.loc[:, 'diff'] = r_tradeData.loc[:, 'abVolume'] - r_tradeData.loc[:, 'asVolume']
+        #r_tradeData.loc[:, 'cum_diff'] = r_tradeData.loc[:, 'diff'].cumsum()
+        #print(l_dict)
+        return l_dict
 
 
 
@@ -1076,13 +1138,118 @@ class Stats(object):
         quotedata.loc[over_vol,'over_vol'] =1
         quotedata.loc[:, 'cum_over_vol'] = (quotedata.loc[:,'over_vol']* quotedata.loc[:, 'tradeVol']).cumsum()
         quotedata.loc[:, 'cum_over_vol_diff'] = quotedata.loc[:,'tradeVolume'] - quotedata.loc[:, 'cum_over_vol']
-        quotedata.loc[:, 'consistence'] = quotedata.loc[:, 'TOTALchange'].rolling(20).sum() / quotedata.loc[:, 'abs_change'].rolling(20).sum()
+        quotedata.loc[:, 'consistence'] = quotedata.loc[:, 'TOTALchange'].rolling(20).mean() / quotedata.loc[:, 'abs_change'].rolling(20).mean()
         quotedata.loc[:,'consistence_mean'] = quotedata.loc[:, 'consistence'].rolling(20).mean()
         quotedata.loc[:,'consistence_std'] = quotedata.loc[:, 'consistence'].rolling(20).std()
         posMark =(quotedata.loc[:, 'consistence']> quotedata.loc[:,'consistence_mean']+2*quotedata.loc[:,'consistence_std'])#&((quotedata.loc[:, 'consistence']< quotedata.loc[:,'consistence_mean']+3*quotedata.loc[:,'consistence_std']))
         negMark =(quotedata.loc[:, 'consistence']< quotedata.loc[:,'consistence_mean']-2*quotedata.loc[:,'consistence_std'])#&(quotedata.loc[:, 'consistence']> quotedata.loc[:,'consistence_mean']-3*quotedata.loc[:,'consistence_std'])
-        bv_sum = quotedata.loc[:,'bidVolume1']+ quotedata.loc[:,'bidVolume2']+ quotedata.loc[:,'bidVolume3']+ quotedata.loc[:,'bidVolume4']+ quotedata.loc[:,'bidVolume5']
-        av_sum = quotedata.loc[:,'bidVolume1']+ quotedata.loc[:,'bidVolume2']+ quotedata.loc[:,'bidVolume3']+ quotedata.loc[:,'bidVolume4']+ quotedata.loc[:,'bidVolume5']
+
+        quotedata.loc[:,'upper_'] = quotedata.loc[:,'consistence_mean']+2*quotedata.loc[:,'consistence_std']
+        quotedata.loc[:,'lower_'] = quotedata.loc[:,'consistence_mean']-2*quotedata.loc[:,'consistence_std']
+        #negMark = quotedata.loc[:,'posChange'] > av_sum
+        #posMark = quotedata.loc[:,'negChange'] <- bv_sum
+        quotedata.loc[posMark, 'marker'] = 1
+        quotedata.loc[negMark, 'marker'] = -1
+        quotedata.loc[(~posMark) & (~negMark), 'marker'] =0
+        #quotedata.loc[:,'change_cum'] = quotedata.loc[:, 'TOTALchange'] .cumsum()
+        '''
+        key_point = quotedata.loc[:, 'marker'] !=0
+        quotedata_kp = quotedata.loc[key_point, :]
+        quotedata_kp.loc[:,'tc_change'] = quotedata_kp.loc[:,'change_cum'].diff()
+        quotedata_kp.loc[:,'tv_change'] = quotedata_kp.loc[:,'tradeVolume'].diff()
+        #quotedata.loc[:, 'consistence_diff'] =  quotedata.loc[:, 'consistence_5'] - quotedata.loc[:, 'consistence_20']
+        para_matrix = pd.DataFrame()
+        para_matrix.loc[:,'midp'] =quotedata.loc[:,'midp']
+        para_matrix.loc[:,'posChange'] =quotedata.loc[:,'posChange']
+        para_matrix.loc[:,'negChange'] =quotedata.loc[:,'negChange']
+        para_matrix.loc[:,'price_shift_20'] = para_matrix.loc[:,'midp'].shift(20)
+        para_matrix.loc[:,'price_shift_50'] = para_matrix.loc[:,'midp'].shift(50)
+        para_matrix.loc[:,'price_diff_20'] = para_matrix.loc[:,'midp'] - para_matrix.loc[:,'price_shift_20']
+        para_matrix.loc[:,'price_diff_50'] = para_matrix.loc[:,'midp'] - para_matrix.loc[:,'price_shift_50']
+        large_change = abs(para_matrix.loc[:,'price_diff_20'])> para_matrix.loc[:,'midp'].iloc[0]*15/10000  + 0.01
+        para_matrix = para_matrix.loc[large_change,:]
+        '''
+        return quotedata
+
+
+
+    def price_volume_fun3(self,symbol):
+        '''
+        dataframe test:算出每个tick下的对应价格的volume，并放在一个以time 为index，price 为column 的dataframe内
+        对于该tick前未出现过的价位，其对应的volume 为nan，若出现，则对应的volume 为最新出现的volume，
+        为了区分bid和ask，其中askVolume 为正 volume，bidVolume 为负volume
+        在bp10 到ap10之间的价位，若不出现在盘口，则记为0，因为被吃掉了
+        计算每一个tick之间的订单变化情况：
+        order_change = diff(test)
+
+        计算posChange :正向变化总和 正向变化包括：ask方加单 ask方吃bid单，bid方撤单
+        posChange = (order_change*((order_change> 0 ).astype(int))).sum(axis = 1)
+        计算negChange :负向变化总和 负向变化包括：bid方加单 bid方吃ask单，ask方撤单
+        negChange = (order_change*((order_change<0).astype(int))).sum(axis = 1)
+        计算净变化totalchange和绝对变化abschange
+        totalchange = posChange - negchange
+        abschange = posChange + negchange
+        观测 20 tick内的一致性：
+        consistence = quotedata.loc[:, 'TOTALchange'].rolling(20).sum() / quotedata.loc[:, 'abs_change'].rolling(20).sum()
+        假如consistence 绝对高的情况下，totalchange占abschange的比重很大，那么意味着poschange 或者negchange其中一个相对很小。这里使用滚动均值方差来表示绝对高,参数为2
+        posMark  = consistence > consistence_mean + 2 * consistence_std  ##过高，一致poschange，ask方一致增强，表示卖信号
+        negMark  = consistence < consistence_mean - 2 * consistence_std  ##过低，一致negchange，bid方一致增强，表示买信号
+        '''
+        quotedata =self.quoteData[symbol]
+        quotedata = quotedata[~quotedata.index.duplicated(keep='first')]
+        #print(quotedata.index.duplicated(keep='first'))
+        price_ask, volume_ask, price_bid, volume_bid = self.quote_cut(quotedata,num= 10)
+
+        ## price_today 当日的所有的价格序列。
+        len_time = len(quotedata.index)
+
+        count = 0
+
+        dict_ = [dict() for i in range(len_time) ]
+        volume_ask.columns = price_ask.columns
+        volume_bid.columns = price_bid.columns
+        dict_ask = self.dict_merge(price_ask.to_dict('index'),volume_ask.to_dict('index'))
+        dict_bid = self.dict_merge(price_bid.to_dict('index'),volume_bid.to_dict('index'))
+
+
+        pool = mdP(4)
+        zip_list = zip(dict_,dict_ask.items(), dict_bid.items())
+
+        test =pool.map(self.volume_loading, zip_list)
+
+        pool.close()
+        pool.join()
+
+        test = pd.DataFrame(test,index = price_ask.index)
+
+        test.fillna(method = 'ffill',inplace = True)
+        order_change = test.diff()
+
+
+        quotedata.loc[:,'posChange'] = (order_change*((order_change> 0 ).astype(int))).sum(axis = 1)
+        quotedata.loc[:,'negChange'] = (order_change*((order_change<0).astype(int))).sum(axis = 1)
+
+        quotedata.loc[:,'tradeVol']  = quotedata.loc[:,'tradeVolume'].diff()*1
+
+        quotedata.loc[:, 'TOTALchange'] = (quotedata.loc[:,'posChange'] + quotedata.loc[:,'negChange'])
+        quotedata.loc[:, 'abs_change'] =( abs(quotedata.loc[:,'posChange']) + abs(quotedata.loc[:,'negChange']))
+        over_vol = quotedata.loc[:, 'tradeVol']>= quotedata.loc[:, 'abs_change'] /2
+        quotedata.loc[:,'over_vol'] = 0
+        quotedata.loc[over_vol,'over_vol'] =1
+        quotedata.loc[:, 'cum_over_vol'] = (quotedata.loc[:,'over_vol']* quotedata.loc[:, 'tradeVol']).cumsum()
+        quotedata.loc[:, 'cum_over_vol_diff'] = quotedata.loc[:,'tradeVolume'] - quotedata.loc[:, 'cum_over_vol']
+        quotedata.loc[:, 'consistence'] = quotedata.loc[:, 'TOTALchange'].rolling(20).sum() / quotedata.loc[:, 'abs_change'].rolling(20).sum()
+        quotedata.loc[:, 'consistence']  = quotedata.loc[:, 'consistence'].ewm(20).mean()
+        quotedata.loc[:,'consistence_mean'] = quotedata.loc[:, 'consistence'].rolling(20).mean()
+        quotedata.loc[:,'consistence_std'] = quotedata.loc[:, 'consistence'].rolling(20).std()
+        quotedata.loc[:, 'regular'] = 0
+        quotedata.loc[quotedata.loc[:,'consistence_mean']>quotedata.loc[:,'consistence_std'], 'regular'] = 0.5
+        quotedata.loc[quotedata.loc[:,'consistence_mean']<-quotedata.loc[:,'consistence_std'], 'regular'] = -0.5
+        posMark =(quotedata.loc[:, 'consistence']> quotedata.loc[:,'consistence_mean']+(2-quotedata.loc[:, 'regular'])*quotedata.loc[:,'consistence_std'])#&((quotedata.loc[:, 'consistence']< quotedata.loc[:,'consistence_mean']+3*quotedata.loc[:,'consistence_std']))
+        negMark =(quotedata.loc[:, 'consistence']< quotedata.loc[:,'consistence_mean']-(2+quotedata.loc[:, 'regular'])*quotedata.loc[:,'consistence_std'])#&(quotedata.loc[:, 'consistence']> quotedata.loc[:,'consistence_mean']-3*quotedata.loc[:,'consistence_std'])
+
+        quotedata.loc[:,'upper_'] = quotedata.loc[:,'consistence_mean']+(2+quotedata.loc[:, 'regular'])*quotedata.loc[:,'consistence_std']
+        quotedata.loc[:,'lower_'] = quotedata.loc[:,'consistence_mean']-(2-quotedata.loc[:, 'regular'])*quotedata.loc[:,'consistence_std']
         #negMark = quotedata.loc[:,'posChange'] > av_sum
         #posMark = quotedata.loc[:,'negChange'] <- bv_sum
         quotedata.loc[posMark, 'marker'] = 1
@@ -1107,7 +1274,6 @@ class Stats(object):
         para_matrix = para_matrix.loc[large_change,:]
         '''
         return quotedata
-
     def dict_merge(self,dict1,dict2):
         for k in dict1.keys():
 
@@ -1125,7 +1291,9 @@ class Stats(object):
         dict_bid = row[2][1]
         bid_nonzero = [k for k in dict_bid.keys() if k >0]
         ask_nonzero = [k for k in dict_ask.keys() if k >0]
-
+        ask_max_volume =max(dict_ask.values())
+        #print(ask_max_volume)
+        bid_max_volume =max(dict_bid.values())
         if len(bid_nonzero)>0:
             lower_bound = min(bid_nonzero)
             upper_bound = max(ask_nonzero)
@@ -1134,8 +1302,10 @@ class Stats(object):
 
             for price in price_range:
                 if price in dict_ask.keys():
+                    #dict_y[price] = dict_ask[price]/np.log(ask_max_volume+1)
                     dict_y[price] = dict_ask[price]
                 elif price in dict_bid.keys():
+                    #dict_y[price] = -dict_bid[price]/ np.log(bid_max_volume+1)
                     dict_y[price] = - dict_bid[price]
                 else:
                     dict_y[price] = 0
@@ -1143,18 +1313,94 @@ class Stats(object):
                 dict_y[0] = 0
         return dict_y
 
+    def flow_detect(self,symbol):
 
+
+        ###  检测流动性用 公式 Spread_k = 2 * (Dk-MK)/MK
+        quotedata = self.quoteData[symbol]
+        tradeData = self.tradeData[symbol]
+        quotedata.loc[:,'midp'] =(quotedata.loc[:,'bidPrice1'] * quotedata.loc[:,'askVolume1']  + quotedata.loc[:,'bidVolume1']  * quotedata.loc[:,'askPrice1'] ) / (quotedata.loc[:,'bidVolume1']+ quotedata.loc[:,'askVolume1']  )
+        quote_time = pd.to_datetime(quotedata.exchangeTime.values).values
+        quotedata.loc[:, 'tradeVolume'] = quotedata.loc[:, 'tradeVolume'].diff()
+        quotedata.loc[:, 'Turnover'] = quotedata.loc[:, 'totalTurnover'].diff()
+        quotedata.index = pd.to_datetime(quotedata.loc[:, 'exchangeTime'].values, format='%Y-%m-%d %H:%M:%S')
+
+        temp_1 = pd.to_datetime(tradeData.loc[:, ' nTime'], format='%Y-%m-%d %H:%M:%S.%f')
+        qqq = temp_1[0].microsecond
+        bid_order = tradeData.loc[:, ' nBSFlag'] == 'B'
+        ask_order = tradeData.loc[:, ' nBSFlag'] == 'S'
+        can_order = tradeData.loc[:, ' nBSFlag'] == ' '
+        tradeData.loc[bid_order, 'numbs_flag'] = 1
+        tradeData.loc[ask_order, 'numbs_flag'] = -1
+        tradeData.loc[can_order, 'numbs_flag'] = 0
+        cancel_order = tradeData.loc[:, ' nPrice'] == 0
+
+        tradeData.loc[:, 'temp'] = tradeData.loc[:, ' nPrice']
+        # tradeData.loc[pos, 'temp'] = np.nan
+        tradeData.temp.fillna(method='ffill', inplace=True)
+        lastrep = list(tradeData.temp.values[:-1])
+        lastrep.insert(0, 0)
+        lastrep = np.asarray(lastrep)
+        tradeData_quote = pd.merge(quotedata.loc[:, [ 'bidPrice1', 'askPrice1','midp', 'tradeVolume', 'Turnover']], tradeData,
+                                   left_index=True, right_index=True, how='outer')
+        tradeData_quote['midp'].fillna(method='ffill', inplace=True)
+        tradeData_quote['askPrice1'].fillna(method='ffill', inplace=True)
+        tradeData_quote['bidPrice1'].fillna(method='ffill', inplace=True)
+        # tradeData_quote.to_csv(self.dataSavePath + './' + str(self.tradeDate.date()) + signal + ' ' + symbol + '.csv')
+        ActiveBuy = (tradeData_quote.loc[:, 'numbs_flag'] == 1)
+        ActiveSell = (tradeData_quote.loc[:, 'numbs_flag'] == -1)
+        tradeData_quote.loc[ActiveBuy, 'abVolume'] = tradeData_quote.loc[ActiveBuy, ' nVolume']
+        tradeData_quote.loc[ActiveSell, 'asVolume'] = tradeData_quote.loc[ActiveSell, ' nVolume']
+        tradeData_quote.loc[ActiveBuy, 'abPrice'] = (tradeData_quote.loc[ActiveBuy, ' nTurnover'] - tradeData_quote.loc[ActiveBuy, ' nVolume']* tradeData_quote.loc[ActiveBuy, 'bidPrice1'])
+        tradeData_quote.loc[ActiveSell, 'asPrice'] = (tradeData_quote.loc[ActiveSell, ' nTurnover'] - tradeData_quote.loc[ActiveSell, ' nVolume']*tradeData_quote.loc[ActiveSell, 'askPrice1'])*-1
+
+        # stats.check_file(tradeData_quote)
+
+        temp_quote_time = np.asarray(list(quote_time))
+        Columns_ = ['abVolume', 'asVolume', 'abPrice', 'asPrice']
+
+        resample_tradeData = tradeData_quote.loc[:, Columns_].resample('1S', label='right', closed='right').sum()
+
+        resample_tradeData = resample_tradeData.cumsum()
+        resample_tradeData = resample_tradeData.loc[temp_quote_time, :]
+        r_tradeData = resample_tradeData.diff()
+        r_tradeData.loc[:, 'abSpread'] = r_tradeData.loc[:, 'abPrice'] / r_tradeData.loc[:, 'abVolume']
+        r_tradeData.loc[:, 'asSpread'] = r_tradeData.loc[:, 'asPrice'] / r_tradeData.loc[:, 'asVolume']
+        r_tradeData.loc[:, 'timecheck'] = quotedata.loc[:, 'exchangeTime']
+        # stats.check_file(r_tradeData)
+
+        # stats.check_file(r_tradeData)
+        '''
+        quote_order = pd.merge(self.quoteData[symbol].loc[:, ['midp', 'midp_10', 'spread']], r_tradeData, left_index=True,
+                               right_index=True, how='left')
+        # .loc[:,'midp'] =self.quoteData[symbol].loc[:,'midp']
+
+        quote_order.to_csv(self.outputpath + './ quote_order.csv')
+
+        # self.quoteData[symbol].loc[:, ['midp', 'bidVolume1', 'askVolume1']].to_csv(self.outputpath + './ quote_o.csv')
+        '''
+        r_tradeData.loc[:, 'diff'] = r_tradeData.loc[:, 'abVolume'] - r_tradeData.loc[:, 'asVolume']
+        r_tradeData.loc[:, 'cum_diff'] = r_tradeData.loc[:, 'diff'].cumsum()
+
+
+        return r_tradeData
     def PV_summary(self,symbol):
         quotedata = self.price_volume_fun(symbol)
         quotedata_2 = self.high_obi(symbol)
-        quotedata_3 = self.obi_fixedprice(symbol)
+        #quotedata_3 = self.obi_fixedprice(symbol)
         quotedata_2 = quotedata_2[~quotedata_2.index.duplicated(keep='first')]
-        quotedata_3 = quotedata_3[~quotedata_3.index.duplicated(keep='first')]
+        #quotedata_3 = quotedata_3[~quotedata_3.index.duplicated(keep='first')]
         quotedata.loc[:,'large_bid'] = quotedata_2.loc[:,'large_bid']
         quotedata.loc[:,'large_ask'] = quotedata_2.loc[:,'large_ask']
         quotedata.loc[:,'bid_loc'] = quotedata_2.loc[:,'bid_loc']
         quotedata.loc[:,'ask_loc'] = quotedata_2.loc[:,'ask_loc']
         quotedata.loc[:,'obi'] = quotedata_2.loc[:,'obi']
+        quotedata.loc[:,'spread'] =quotedata.loc[:,'askPrice1'] - quotedata.loc[:,'bidPrice1']
+        negativePos =(quotedata.loc[:, 'marker'] == 1)&(quotedata.loc[:,'bid_loc']==0)& (quotedata.loc[:,'ask_loc']!=0)
+        positivePos = (quotedata.loc[:, 'marker'] == -1)&(quotedata.loc[:,'ask_loc']==0)& (quotedata.loc[:,'bid_loc']!=0)
+        quotedata.loc[negativePos,'signal_'] = -1
+        quotedata.loc[positivePos,'signal_'] = 1
+        quotedata.loc[(~positivePos) & (~negativePos),'signal_'] = 0
         return quotedata
     def vol_detect(self, symbol):
 
@@ -1246,38 +1492,75 @@ class Stats(object):
         #stats.cancel_order(symbol)
         #stats.price_filter()
 
-        #price_situation =self.ProcessOrderInfo(data.tradeData[symbol],orderType = ' nAskOrder')
-        price_situation =self.large_order(symbol,price = 10.85)
+        price_situation =pd.DataFrame.from_dict(self.response_fun(symbol),orient='index')
 
         t2 = time.time()
-        self.check_file(price_situation)
+        #self.check_file(price_situation)
         #price_situation
         #price_situation = stats.high_obi(symbol,' 14:55:00')
         #self.check_file(price_situation,symbol = symbol)
-        t3 = time.time()
-        print('cal time:'+str(t2-t1))
-        print('writing time:'+str(t3-t2))
-        return 0
+        #t3 = time.time()
+        #print('cal time:'+str(t2-t1))
+        #print('writing time:'+str(t3-t2))
+        return price_situation
+
+
+
 if __name__ == '__main__':
     """
     test the class
+    ['2019-01-02', '2019-01-03', '2019-01-04', '2019-01-07', '2019-01-08', '2019-01-09', '2019-01-10', '2019-01-11', '2019-01-14',
+     '2019-01-15', '2019-01-16', '2019-01-17', '2019-01-18', '2019-01-21', '2019-01-22', '2019-01-23', '2019-01-24', '2019-01-25', 
+     '2019-01-28', '2019-01-29', '2019-01-30', '2019-01-31', '2019-02-01', '2019-02-11', '2019-02-12', '2019-02-13', '2019-02-14',
+      '2019-02-15', '2019-02-18', '2019-02-19', '2019-02-20', '2019-02-21', '2019-02-22', '2019-02-25', '2019-02-26', '2019-02-27',
+       '2019-02-28', '2019-03-01', '2019-03-04', '2019-03-05', '2019-03-06', '2019-03-07', '2019-03-08', '2019-03-11', '2019-03-12', 
+       '2019-03-13', '2019-03-14', '2019-03-15', '2019-03-18', '2019-03-19', '2019-03-20', '2019-03-21', '2019-03-22', '2019-03-25',
+        '2019-03-26', '2019-03-27', '2019-03-28', '2019-03-29', '2019-04-01', '2019-04-02', '2019-04-03', '2019-04-04', '2019-04-08', 
+        '2019-04-09', '2019-04-10']
+
     """
     # data = Data('E:/personalfiles/to_zhixiong/to_zhixiong/level2_data_with_factor_added','600030.SH','20170516')
     dataPath = '//192.168.0.145/data/stock/wind'
     ## /sh201707d/sh_20170703
     t1 = time.time()
-    tradeDate = '20190404'
+    tradeDate = '20190410'
     symbols_path  = 'D:/SignalTest/SignalTest/ref_data/sh50.csv'
     symbol_list = pd.read_csv(symbols_path)
 
     symbols = symbol_list.loc[:,'secucode']
     print(symbols)
-    symbols = ['601298.SH']
-    data = Data.Data(dataPath,symbols, tradeDate,'' ,dataReadType= 'gzip', RAWDATA = 'True')
-    stats   = Stats(symbols,tradeDate,data.quoteData,data.tradeData)
+    symbols = ['600366.SH']
+
+    tradingDay = ['20190102', '20190103', '20190104', '20190107', '20190108', '20190109', '20190110',
+                  '20190111', '20190114', '20190115', '20190116', '20190117', '20190118', '20190121',
+                  '20190122', '20190123', '20190124', '20190125', '20190128', '20190129', '20190130',
+                  '20190131', '20190201', '20190211', '20190212', '20190213', '20190214', '20190215',
+                  '20190218', '20190219', '20190220', '20190221', '20190222', '20190225', '20190226',
+                  '20190227',
+                  '20190228', '20190301', '20190304', '20190305', '20190306', '20190307', '20190308',
+                  '20190311',
+                  '20190312', '20190314', '20190315', '20190318', '20190319', '20190320', '20190321',
+                  '20190322',
+                  '20190325',]
+    '''
+                  '20190326', '20190328', '20190329', '20190401', '20190402', '20190403',
+                  '20190404',
+                  '20190408', '20190409']
+    '''
+    # price_situation =self.ProcessOrderInfo(data.tradeData[symbol],orderType = ' nAskOrder')
+    t2 = time.time()
+    stats_df = pd.DataFrame()
+    for tradeDate in tradingDay:
+        print(tradeDate)
+        data = Data.Data(dataPath,symbols, tradeDate,'' ,dataReadType= 'gzip', RAWDATA = 'True')
+        stats   = Stats(symbols,tradeDate,data.quoteData,data.tradeData)
+        temp = stats.run(symbols[0])
+
+        stats_df.loc[:, tradeDate] = temp[0]
 
     #print(data.tradeData[symbols[0]])
-    t2 = time.time()
+    #file_ = stats_df.loc[:,tradeDate] = temp
+    stats.check_file(stats_df)
     '''
     q = pd.DataFrame()
     multi_pool = mpP(4)
@@ -1286,7 +1569,9 @@ if __name__ == '__main__':
     multi_pool.join()
     '''
 
-    stats.run(symbols[0])
+
+
+
     t3 = time.time()
     print('total:' + str(t3 - t2))
     print('readData_time:' + str(t2 - t1))

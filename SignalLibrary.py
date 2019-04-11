@@ -626,10 +626,11 @@ class SignalLibrary(object):
 
         #negativePos = (self.allQuoteData.loc[:, 'posChange']>2*self.allQuoteData.loc[:,'bid_loc'])&(self.allQuoteData.loc[:, 'marker'] == 1)
         #positivePos =  (self.allQuoteData.loc[:, 'negChange']<-2*self.allQuoteData.loc[:,'ask_loc'])&(self.allQuoteData.loc[:, 'marker'] ==-1)
-        negativePos =(self.allQuoteData.loc[:,'bid_loc']==0)&(self.allQuoteData.loc[:, 'marker'] == 1)& (self.allQuoteData.loc[:,'ask_loc']!=0)
-        positivePos = (self.allQuoteData.loc[:,'ask_loc']==0)&(self.allQuoteData.loc[:, 'marker'] ==-1)& (self.allQuoteData.loc[:,'bid_loc']!=0)
+        negativePos =(self.allQuoteData.loc[:,'bid_loc']==0)&(self.allQuoteData.loc[:, 'marker'] == 1)& (self.allQuoteData.loc[:,'ask_loc']!=0)#&(self.allQuoteData.loc[:, 'TOTALchange'] ==0)
+        positivePos = (self.allQuoteData.loc[:,'ask_loc']==0)&(self.allQuoteData.loc[:, 'marker'] ==-1)& (self.allQuoteData.loc[:,'bid_loc']!=0)#&(self.allQuoteData.loc[:, 'TOTALchange'] ==0)
         pnSignal = list()
         count = 0
+        '''
         for row in zip(positivePos,negativePos,(self.allQuoteData.loc[:, 'obi'] )):
             pos = row[0]
             neg = row[1]
@@ -661,6 +662,10 @@ class SignalLibrary(object):
         #self.allQuoteData .loc[pPos, signal + '_' + str(window) + '_min'] = 1
         #self.allQuoteData .loc[nPos, signal +'_' + str(window) + '_min'] = -1
         self.allQuoteData .loc[(~positivePos) & (~negativePos), signal +'_' + str(window) + '_min'] = 0
+        '''
+        self.allQuoteData .loc[positivePos, signal + '_' + str(window) + '_min'] = 1
+        self.allQuoteData .loc[negativePos, signal + '_' + str(window) + '_min'] = -1
+        self.allQuoteData .loc[(~positivePos) & (~negativePos), signal + '_' + str(window) + '_min'] = 0
         return self.allQuoteData
 
 
